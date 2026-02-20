@@ -31,6 +31,41 @@ pub enum TokenKind {
     Eof,
     If,
     In,
+    For,
+    Try,
+    Base,
+    Case,
+    Else,
+    Enum,
+    Null,
+    This,
+    True,
+    Break,
+    Catch,
+    Class,
+    Clone,
+    Const,
+    False,
+    Local,
+    Throw,
+    While,
+    Yield,
+    Delete,
+    Resume,
+    Return,
+    Static,
+    Switch,
+    Typeof,
+    Default,
+    Extends,
+    Foreach,
+    Rawcall,
+    File,
+    Line,
+    Continue,
+    Function,
+    InstanceOf,
+    Constructor,
     Identifier,
 }
 
@@ -122,7 +157,66 @@ impl Lexer {
                 "in" => TokenKind::In,
                 _ => TokenKind::Identifier,
             },
-            _ => todo!(),
+            3 => match value.as_str() {
+                "for" => TokenKind::For,
+                "try" => TokenKind::Try,
+                _ => TokenKind::Identifier,
+            },
+            4 => match value.as_str() {
+                "base" => TokenKind::Base,
+                "case" => TokenKind::Case,
+                "else" => TokenKind::Else,
+                "enum" => TokenKind::Enum,
+                "null" => TokenKind::Null,
+                "this" => TokenKind::This,
+                "true" => TokenKind::True,
+                _ => TokenKind::Identifier,
+            },
+            5 => match value.as_str() {
+                "break" => TokenKind::Break,
+                "catch" => TokenKind::Catch,
+                "class" => TokenKind::Class,
+                "clone" => TokenKind::Clone,
+                "const" => TokenKind::Const,
+                "false" => TokenKind::False,
+                "local" => TokenKind::Local,
+                "throw" => TokenKind::Throw,
+                "while" => TokenKind::While,
+                "yield" => TokenKind::Yield,
+                _ => TokenKind::Identifier,
+            },
+            6 => match value.as_str() {
+                "delete" => TokenKind::Delete,
+                "resume" => TokenKind::Resume,
+                "return" => TokenKind::Return,
+                "static" => TokenKind::Static,
+                "switch" => TokenKind::Switch,
+                "typeof" => TokenKind::Typeof,
+                _ => TokenKind::Identifier,
+            },
+            7 => match value.as_str() {
+                "default" => TokenKind::Default,
+                "extends" => TokenKind::Extends,
+                "foreach" => TokenKind::Foreach,
+                "rawcall" => TokenKind::Rawcall,
+                _ => TokenKind::Identifier,
+            },
+            8 => match value.as_str() {
+                "__FILE__" => TokenKind::File,
+                "__LINE__" => TokenKind::Line,
+                "continue" => TokenKind::Continue,
+                "function" => TokenKind::Function,
+                _ => TokenKind::Identifier,
+            },
+            10 => match value.as_str() {
+                "instanceof" => TokenKind::InstanceOf,
+                _ => TokenKind::Identifier,
+            },
+            11 => match value.as_str() {
+                "constructor" => TokenKind::Constructor,
+                _ => TokenKind::Identifier,
+            },
+            _ => TokenKind::Identifier,
         };
 
         let position = Position::new((self.line, self.line), (column_start, self.column - 1));
@@ -205,8 +299,73 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn keywords() {
         assert_eq!(tok_from("if"), tok_wrapped(If, "", (1, 1), (1, 2)));
         assert_eq!(tok_from("in"), tok_wrapped(In, "", (1, 1), (1, 2)));
+
+        assert_eq!(tok_from("for"), tok_wrapped(For, "", (1, 1), (1, 3)));
+        assert_eq!(tok_from("try"), tok_wrapped(Try, "", (1, 1), (1, 3)));
+
+        assert_eq!(tok_from("base"), tok_wrapped(Base, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("case"), tok_wrapped(Case, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("else"), tok_wrapped(Else, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("enum"), tok_wrapped(Enum, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("null"), tok_wrapped(Null, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("this"), tok_wrapped(This, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from("true"), tok_wrapped(True, "", (1, 1), (1, 4)));
+
+        assert_eq!(tok_from("break"), tok_wrapped(Break, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("catch"), tok_wrapped(Catch, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("class"), tok_wrapped(Class, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("clone"), tok_wrapped(Clone, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("const"), tok_wrapped(Const, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("false"), tok_wrapped(False, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("local"), tok_wrapped(Local, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("throw"), tok_wrapped(Throw, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("while"), tok_wrapped(While, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from("yield"), tok_wrapped(Yield, "", (1, 1), (1, 5)));
+
+        assert_eq!(tok_from("delete"), tok_wrapped(Delete, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from("resume"), tok_wrapped(Resume, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from("return"), tok_wrapped(Return, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from("static"), tok_wrapped(Static, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from("switch"), tok_wrapped(Switch, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from("typeof"), tok_wrapped(Typeof, "", (1, 1), (1, 6)));
+
+        assert_eq!(tok_from("default"), tok_wrapped(Default, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from("extends"), tok_wrapped(Extends, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from("foreach"), tok_wrapped(Foreach, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from("rawcall"), tok_wrapped(Rawcall, "", (1, 1), (1, 7)));
+
+        assert_eq!(tok_from("__FILE__"), tok_wrapped(File, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from("__LINE__"), tok_wrapped(Line, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from("continue"), tok_wrapped(Continue, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from("function"), tok_wrapped(Function, "", (1, 1), (1, 8)));
+
+        assert_eq!(tok_from("instanceof"), tok_wrapped(InstanceOf, "", (1, 1), (1, 10)));
+        assert_eq!(tok_from("constructor"), tok_wrapped(Constructor, "", (1, 1), (1, 11)));
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn identifiers() {
+        assert_eq!(tok_from("_"), tok_wrapped(Identifier, "_", (1, 1), (1, 1)));
+        assert_eq!(tok_from("f"), tok_wrapped(Identifier, "f", (1, 1), (1, 1)));
+        assert_eq!(tok_from("F"), tok_wrapped(Identifier, "F", (1, 1), (1, 1)));
+        assert_eq!(tok_from("f1"), tok_wrapped(Identifier, "f1", (1, 1), (1, 2)));
+        assert_eq!(tok_from("_1"), tok_wrapped(Identifier, "_1", (1, 1), (1, 2)));
+        assert_eq!(tok_from("__"), tok_wrapped(Identifier, "__", (1, 1), (1, 2)));
+        assert_eq!(tok_from("foo"), tok_wrapped(Identifier, "foo", (1, 1), (1, 3)));
+        assert_eq!(tok_from("__fo"), tok_wrapped(Identifier, "__fo", (1, 1), (1, 4)));
+        assert_eq!(tok_from("__2fo"), tok_wrapped(Identifier, "__2fo", (1, 1), (1, 5)));
+        assert_eq!(tok_from("FooBar"), tok_wrapped(Identifier, "FooBar", (1, 1), (1, 6)));
+        assert_eq!(tok_from("fOo2BaR"), tok_wrapped(Identifier, "fOo2BaR", (1, 1), (1, 7)));
+        assert_eq!(tok_from("HALFLIFE"), tok_wrapped(Identifier, "HALFLIFE", (1, 1), (1, 8)));
+        assert_eq!(tok_from("fooBarBaz"), tok_wrapped(Identifier, "fooBarBaz", (1, 1), (1, 9)));
+        assert_eq!(tok_from("portal_two"), tok_wrapped(Identifier, "portal_two", (1, 1), (1, 10)));
+        assert_eq!(tok_from("__DumpScope"), tok_wrapped(Identifier, "__DumpScope", (1, 1), (1, 11)));
+        assert_eq!(tok_from("__0foobarbaz"), tok_wrapped(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
+        assert_eq!(tok_from("___0123456789"), tok_wrapped(Identifier, "___0123456789", (1, 1), (1, 13)));
     }
 }
