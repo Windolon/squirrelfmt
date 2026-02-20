@@ -127,15 +127,20 @@ mod tests {
     use super::*;
     use TokenKind::*;
 
-    fn tok(kind: TokenKind, value: &str, lines: (u32, u32), columns: (u32, u32)) -> Token {
+    fn tok_wrapped(
+        kind: TokenKind,
+        value: &str,
+        lines: (u32, u32),
+        columns: (u32, u32),
+    ) -> Option<Result<Token, LexerError>> {
         let pos = Position::new(lines, columns);
-        Token::new(kind, value.to_string(), pos)
+        Some(Ok(Token::new(kind, value.to_string(), pos)))
     }
 
     #[test]
     fn eof_empty_none() {
         let mut lexer = Lexer::new("");
-        assert_eq!(lexer.next_token(), Some(Ok(tok(Eof, "", (1, 1), (1, 1)))));
+        assert_eq!(lexer.next_token(), tok_wrapped(Eof, "", (1, 1), (1, 1)));
         assert_eq!(lexer.next_token(), None);
         assert_eq!(lexer.next_token(), None);
     }
