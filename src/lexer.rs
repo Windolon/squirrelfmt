@@ -1,4 +1,11 @@
 const NULL: u8 = 0;
+const UPPER_A: u8 = 65;
+const UPPER_Z: u8 = 90;
+const UNDERSCORE: u8 = 95;
+const LOWER_A: u8 = 97;
+const LOWER_Z: u8 = 122;
+const ZERO: u8 = 48;
+const NINE: u8 = 57;
 
 #[derive(Debug, PartialEq)]
 struct Position {
@@ -22,6 +29,9 @@ impl Position {
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Eof,
+    If,
+    In,
+    Identifier,
 }
 
 #[derive(Debug, PartialEq)]
@@ -63,6 +73,7 @@ impl Lexer {
     pub fn next_token(&mut self) -> Option<Result<Token, LexerError>> {
         match self.current_byte() {
             NULL => self.eof(),
+            UPPER_A..=UPPER_Z | LOWER_A..=LOWER_Z | UNDERSCORE => self.identifier_or_keyword(),
             _ => todo!(),
         }
     }
@@ -84,6 +95,42 @@ impl Lexer {
         } else {
             let pos = Position::new((line, line), (column - 1, column - 1));
             Some(Ok(Token::new(TokenKind::Eof, "".to_string(), pos)))
+        }
+    }
+
+    fn identifier_or_keyword(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        let index_start = self.index;
+
+        while let UPPER_A..=UPPER_Z | LOWER_A..=LOWER_Z | ZERO..=NINE | UNDERSCORE =
+            self.advance_char()
+        {
+            continue;
+        }
+
+        // The loop above should have made sure that we are dealing with valid bytes in range,
+        // so it is ok to use from_utf8_lossy and direct indexing to avoid having to unwrap things.
+        let value = String::from_utf8_lossy(&self.source[index_start..self.index]).into_owned();
+
+        // This logic follows Inko's implementation.
+        //
+        // If we did a simple match against all keywords, each identifier
+        // would need to be run through every match arm before exiting.
+        let kind = match value.len() {
+            2 => match value.as_str() {
+                "if" => TokenKind::If,
+                "in" => TokenKind::In,
+                _ => TokenKind::Identifier,
+            },
+            _ => todo!(),
+        };
+
+        let position = Position::new((self.line, self.line), (column_start, self.column - 1));
+
+        if kind == TokenKind::Identifier {
+            Some(Ok(Token::new(kind, value, position)))
+        } else {
+            Some(Ok(Token::new(kind, "".to_string(), position)))
         }
     }
 
@@ -137,11 +184,21 @@ mod tests {
         Some(Ok(Token::new(kind, value.to_string(), pos)))
     }
 
+    fn tok_from(source: &str) -> Option<Result<Token, LexerError>> {
+        let mut lexer = Lexer::new(source);
+        lexer.next_token()
+    }
+
     #[test]
     fn eof_empty_none() {
         let mut lexer = Lexer::new("");
         assert_eq!(lexer.next_token(), tok_wrapped(Eof, "", (1, 1), (1, 1)));
         assert_eq!(lexer.next_token(), None);
         assert_eq!(lexer.next_token(), None);
+    }
+    #[test]
+    fn keywords() {
+        assert_eq!(tok_from("if"), tok_wrapped(If, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from("in"), tok_wrapped(In, "", (1, 1), (1, 2)));
     }
 }
