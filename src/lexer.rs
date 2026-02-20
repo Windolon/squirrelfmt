@@ -196,6 +196,14 @@ mod tests {
         assert_eq!(lexer.next_token(), None);
         assert_eq!(lexer.next_token(), None);
     }
+
+    #[test]
+    fn eof_non_empty_line() {
+        let mut lexer = Lexer::new("if");
+        lexer.next_token();
+        assert_eq!(lexer.next_token(), tok_wrapped(Eof, "", (1, 1), (2, 2)));
+    }
+
     #[test]
     fn keywords() {
         assert_eq!(tok_from("if"), tok_wrapped(If, "", (1, 1), (1, 2)));
