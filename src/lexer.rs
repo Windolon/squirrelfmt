@@ -278,9 +278,22 @@ mod tests {
         Some(Ok(Token::new(kind, value.to_string(), pos)))
     }
 
-    fn tok_from(source: &str) -> Option<Result<Token, LexerError>> {
+    fn tok_wrapped_with_next(
+        kind: TokenKind,
+        value: &str,
+        lines: (u32, u32),
+        columns: (u32, u32),
+    ) -> Vec<Option<Result<Token, LexerError>>> {
+        vec![
+            tok_wrapped(kind, value, lines, columns),
+            tok_wrapped(Eof, "", lines, (columns.1, columns.1)),
+        ]
+    }
+
+    fn tok_from_with_next(source: &str) -> Vec<Option<Result<Token, LexerError>>> {
         let mut lexer = Lexer::new(source);
-        lexer.next_token()
+        let first_tok = lexer.next_token();
+        vec![first_tok, lexer.next_token()]
     }
 
     #[test]
@@ -301,71 +314,71 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn keywords() {
-        assert_eq!(tok_from("if"), tok_wrapped(If, "", (1, 1), (1, 2)));
-        assert_eq!(tok_from("in"), tok_wrapped(In, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("if"), tok_wrapped_with_next(If, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("in"), tok_wrapped_with_next(In, "", (1, 1), (1, 2)));
 
-        assert_eq!(tok_from("for"), tok_wrapped(For, "", (1, 1), (1, 3)));
-        assert_eq!(tok_from("try"), tok_wrapped(Try, "", (1, 1), (1, 3)));
+        assert_eq!(tok_from_with_next("for"), tok_wrapped_with_next(For, "", (1, 1), (1, 3)));
+        assert_eq!(tok_from_with_next("try"), tok_wrapped_with_next(Try, "", (1, 1), (1, 3)));
 
-        assert_eq!(tok_from("base"), tok_wrapped(Base, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("case"), tok_wrapped(Case, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("else"), tok_wrapped(Else, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("enum"), tok_wrapped(Enum, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("null"), tok_wrapped(Null, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("this"), tok_wrapped(This, "", (1, 1), (1, 4)));
-        assert_eq!(tok_from("true"), tok_wrapped(True, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("base"), tok_wrapped_with_next(Base, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("case"), tok_wrapped_with_next(Case, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("else"), tok_wrapped_with_next(Else, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("enum"), tok_wrapped_with_next(Enum, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("null"), tok_wrapped_with_next(Null, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("this"), tok_wrapped_with_next(This, "", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("true"), tok_wrapped_with_next(True, "", (1, 1), (1, 4)));
 
-        assert_eq!(tok_from("break"), tok_wrapped(Break, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("catch"), tok_wrapped(Catch, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("class"), tok_wrapped(Class, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("clone"), tok_wrapped(Clone, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("const"), tok_wrapped(Const, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("false"), tok_wrapped(False, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("local"), tok_wrapped(Local, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("throw"), tok_wrapped(Throw, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("while"), tok_wrapped(While, "", (1, 1), (1, 5)));
-        assert_eq!(tok_from("yield"), tok_wrapped(Yield, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("break"), tok_wrapped_with_next(Break, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("catch"), tok_wrapped_with_next(Catch, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("class"), tok_wrapped_with_next(Class, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("clone"), tok_wrapped_with_next(Clone, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("const"), tok_wrapped_with_next(Const, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("false"), tok_wrapped_with_next(False, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("local"), tok_wrapped_with_next(Local, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("throw"), tok_wrapped_with_next(Throw, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("while"), tok_wrapped_with_next(While, "", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("yield"), tok_wrapped_with_next(Yield, "", (1, 1), (1, 5)));
 
-        assert_eq!(tok_from("delete"), tok_wrapped(Delete, "", (1, 1), (1, 6)));
-        assert_eq!(tok_from("resume"), tok_wrapped(Resume, "", (1, 1), (1, 6)));
-        assert_eq!(tok_from("return"), tok_wrapped(Return, "", (1, 1), (1, 6)));
-        assert_eq!(tok_from("static"), tok_wrapped(Static, "", (1, 1), (1, 6)));
-        assert_eq!(tok_from("switch"), tok_wrapped(Switch, "", (1, 1), (1, 6)));
-        assert_eq!(tok_from("typeof"), tok_wrapped(Typeof, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("delete"), tok_wrapped_with_next(Delete, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("resume"), tok_wrapped_with_next(Resume, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("return"), tok_wrapped_with_next(Return, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("static"), tok_wrapped_with_next(Static, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("switch"), tok_wrapped_with_next(Switch, "", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("typeof"), tok_wrapped_with_next(Typeof, "", (1, 1), (1, 6)));
 
-        assert_eq!(tok_from("default"), tok_wrapped(Default, "", (1, 1), (1, 7)));
-        assert_eq!(tok_from("extends"), tok_wrapped(Extends, "", (1, 1), (1, 7)));
-        assert_eq!(tok_from("foreach"), tok_wrapped(Foreach, "", (1, 1), (1, 7)));
-        assert_eq!(tok_from("rawcall"), tok_wrapped(Rawcall, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from_with_next("default"), tok_wrapped_with_next(Default, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from_with_next("extends"), tok_wrapped_with_next(Extends, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from_with_next("foreach"), tok_wrapped_with_next(Foreach, "", (1, 1), (1, 7)));
+        assert_eq!(tok_from_with_next("rawcall"), tok_wrapped_with_next(Rawcall, "", (1, 1), (1, 7)));
 
-        assert_eq!(tok_from("__FILE__"), tok_wrapped(File, "", (1, 1), (1, 8)));
-        assert_eq!(tok_from("__LINE__"), tok_wrapped(Line, "", (1, 1), (1, 8)));
-        assert_eq!(tok_from("continue"), tok_wrapped(Continue, "", (1, 1), (1, 8)));
-        assert_eq!(tok_from("function"), tok_wrapped(Function, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from_with_next("__FILE__"), tok_wrapped_with_next(File, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from_with_next("__LINE__"), tok_wrapped_with_next(Line, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from_with_next("continue"), tok_wrapped_with_next(Continue, "", (1, 1), (1, 8)));
+        assert_eq!(tok_from_with_next("function"), tok_wrapped_with_next(Function, "", (1, 1), (1, 8)));
 
-        assert_eq!(tok_from("instanceof"), tok_wrapped(InstanceOf, "", (1, 1), (1, 10)));
-        assert_eq!(tok_from("constructor"), tok_wrapped(Constructor, "", (1, 1), (1, 11)));
+        assert_eq!(tok_from_with_next("instanceof"), tok_wrapped_with_next(InstanceOf, "", (1, 1), (1, 10)));
+        assert_eq!(tok_from_with_next("constructor"), tok_wrapped_with_next(Constructor, "", (1, 1), (1, 11)));
     }
 
     #[test]
     #[rustfmt::skip]
     fn identifiers() {
-        assert_eq!(tok_from("_"), tok_wrapped(Identifier, "_", (1, 1), (1, 1)));
-        assert_eq!(tok_from("f"), tok_wrapped(Identifier, "f", (1, 1), (1, 1)));
-        assert_eq!(tok_from("F"), tok_wrapped(Identifier, "F", (1, 1), (1, 1)));
-        assert_eq!(tok_from("f1"), tok_wrapped(Identifier, "f1", (1, 1), (1, 2)));
-        assert_eq!(tok_from("_1"), tok_wrapped(Identifier, "_1", (1, 1), (1, 2)));
-        assert_eq!(tok_from("__"), tok_wrapped(Identifier, "__", (1, 1), (1, 2)));
-        assert_eq!(tok_from("foo"), tok_wrapped(Identifier, "foo", (1, 1), (1, 3)));
-        assert_eq!(tok_from("__fo"), tok_wrapped(Identifier, "__fo", (1, 1), (1, 4)));
-        assert_eq!(tok_from("__2fo"), tok_wrapped(Identifier, "__2fo", (1, 1), (1, 5)));
-        assert_eq!(tok_from("FooBar"), tok_wrapped(Identifier, "FooBar", (1, 1), (1, 6)));
-        assert_eq!(tok_from("fOo2BaR"), tok_wrapped(Identifier, "fOo2BaR", (1, 1), (1, 7)));
-        assert_eq!(tok_from("HALFLIFE"), tok_wrapped(Identifier, "HALFLIFE", (1, 1), (1, 8)));
-        assert_eq!(tok_from("fooBarBaz"), tok_wrapped(Identifier, "fooBarBaz", (1, 1), (1, 9)));
-        assert_eq!(tok_from("portal_two"), tok_wrapped(Identifier, "portal_two", (1, 1), (1, 10)));
-        assert_eq!(tok_from("__DumpScope"), tok_wrapped(Identifier, "__DumpScope", (1, 1), (1, 11)));
-        assert_eq!(tok_from("__0foobarbaz"), tok_wrapped(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
-        assert_eq!(tok_from("___0123456789"), tok_wrapped(Identifier, "___0123456789", (1, 1), (1, 13)));
+        assert_eq!(tok_from_with_next("_"), tok_wrapped_with_next(Identifier, "_", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("f"), tok_wrapped_with_next(Identifier, "f", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("F"), tok_wrapped_with_next(Identifier, "F", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("f1"), tok_wrapped_with_next(Identifier, "f1", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("_1"), tok_wrapped_with_next(Identifier, "_1", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("__"), tok_wrapped_with_next(Identifier, "__", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("foo"), tok_wrapped_with_next(Identifier, "foo", (1, 1), (1, 3)));
+        assert_eq!(tok_from_with_next("__fo"), tok_wrapped_with_next(Identifier, "__fo", (1, 1), (1, 4)));
+        assert_eq!(tok_from_with_next("__2fo"), tok_wrapped_with_next(Identifier, "__2fo", (1, 1), (1, 5)));
+        assert_eq!(tok_from_with_next("FooBar"), tok_wrapped_with_next(Identifier, "FooBar", (1, 1), (1, 6)));
+        assert_eq!(tok_from_with_next("fOo2BaR"), tok_wrapped_with_next(Identifier, "fOo2BaR", (1, 1), (1, 7)));
+        assert_eq!(tok_from_with_next("HALFLIFE"), tok_wrapped_with_next(Identifier, "HALFLIFE", (1, 1), (1, 8)));
+        assert_eq!(tok_from_with_next("fooBarBaz"), tok_wrapped_with_next(Identifier, "fooBarBaz", (1, 1), (1, 9)));
+        assert_eq!(tok_from_with_next("portal_two"), tok_wrapped_with_next(Identifier, "portal_two", (1, 1), (1, 10)));
+        assert_eq!(tok_from_with_next("__DumpScope"), tok_wrapped_with_next(Identifier, "__DumpScope", (1, 1), (1, 11)));
+        assert_eq!(tok_from_with_next("__0foobarbaz"), tok_wrapped_with_next(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
+        assert_eq!(tok_from_with_next("___0123456789"), tok_wrapped_with_next(Identifier, "___0123456789", (1, 1), (1, 13)));
     }
 }
