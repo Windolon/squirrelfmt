@@ -591,20 +591,27 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn identifiers() {
+        // unused variable
         assert_eq!(tok_from_with_next("_"), tok_wrapped_with_next(Identifier, "_", (1, 1), (1, 1)));
         assert_eq!(tok_from_with_next("f"), tok_wrapped_with_next(Identifier, "f", (1, 1), (1, 1)));
         assert_eq!(tok_from_with_next("F"), tok_wrapped_with_next(Identifier, "F", (1, 1), (1, 1)));
         assert_eq!(tok_from_with_next("f1"), tok_wrapped_with_next(Identifier, "f1", (1, 1), (1, 2)));
         assert_eq!(tok_from_with_next("_1"), tok_wrapped_with_next(Identifier, "_1", (1, 1), (1, 2)));
         assert_eq!(tok_from_with_next("__"), tok_wrapped_with_next(Identifier, "__", (1, 1), (1, 2)));
+        // general variable
         assert_eq!(tok_from_with_next("foo"), tok_wrapped_with_next(Identifier, "foo", (1, 1), (1, 3)));
         assert_eq!(tok_from_with_next("__fo"), tok_wrapped_with_next(Identifier, "__fo", (1, 1), (1, 4)));
         assert_eq!(tok_from_with_next("__2fo"), tok_wrapped_with_next(Identifier, "__2fo", (1, 1), (1, 5)));
+        // PascalCase
         assert_eq!(tok_from_with_next("FooBar"), tok_wrapped_with_next(Identifier, "FooBar", (1, 1), (1, 6)));
         assert_eq!(tok_from_with_next("fOo2BaR"), tok_wrapped_with_next(Identifier, "fOo2BaR", (1, 1), (1, 7)));
-        assert_eq!(tok_from_with_next("HALFLIFE"), tok_wrapped_with_next(Identifier, "HALFLIFE", (1, 1), (1, 8)));
-        assert_eq!(tok_from_with_next("fooBarBaz"), tok_wrapped_with_next(Identifier, "fooBarBaz", (1, 1), (1, 9)));
+        // camelCase
+        assert_eq!(tok_from_with_next("fooBarBa"), tok_wrapped_with_next(Identifier, "fooBarBa", (1, 1), (1, 8)));
+        // SCREAMING_SNAKE_CASE
+        assert_eq!(tok_from_with_next("HALF_LIFE"), tok_wrapped_with_next(Identifier, "HALF_LIFE", (1, 1), (1, 9)));
+        // snake_case
         assert_eq!(tok_from_with_next("portal_two"), tok_wrapped_with_next(Identifier, "portal_two", (1, 1), (1, 10)));
+        // a general script function beginning with "_"
         assert_eq!(tok_from_with_next("__DumpScope"), tok_wrapped_with_next(Identifier, "__DumpScope", (1, 1), (1, 11)));
         assert_eq!(tok_from_with_next("__0foobarbaz"), tok_wrapped_with_next(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
         assert_eq!(tok_from_with_next("___0123456789"), tok_wrapped_with_next(Identifier, "___0123456789", (1, 1), (1, 13)));
