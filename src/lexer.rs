@@ -113,6 +113,20 @@ impl Lexer {
         }
     }
 
+    /// Returns a token of `kind`, having an empty `String` as its `value` and
+    /// spanning only on the current line of the lexer.
+    /// Column-wise, it spans from `start` to one column before the lexer, inclusive.
+    fn token_on_line(&self, kind: TokenKind, start: u32) -> Token {
+        self.token_on_line_with_value(kind, "", start)
+    }
+
+    /// Returns a token of `kind` and `value`, that spans only on the current line of the lexer.
+    /// Column-wise, it spans from `start` to one column before the lexer, inclusive.
+    fn token_on_line_with_value(&self, kind: TokenKind, value: &str, start: u32) -> Token {
+        let position = Position::new((self.line, self.line), (start, self.column - 1));
+        Token::new(kind, value.to_string(), position)
+    }
+
     fn eof(&mut self) -> Option<Result<Token, LexerError>> {
         let line = self.line;
         let column = self.column;
@@ -123,13 +137,13 @@ impl Lexer {
 
         self.did_send_eof = true;
 
-        // TODO: Rewrite this with a wrapper method
         if column == 1 {
+            // If the Eof is on a new line on its own, its position should be at [<line>:1].
             let pos = Position::new((line, line), (column, column));
             Some(Ok(Token::new(TokenKind::Eof, "".to_string(), pos)))
         } else {
-            let pos = Position::new((line, line), (column - 1, column - 1));
-            Some(Ok(Token::new(TokenKind::Eof, "".to_string(), pos)))
+            // Otherwise, its position should be wherever the last character is at.
+            Some(Ok(self.token_on_line(TokenKind::Eof, column - 1)))
         }
     }
 
@@ -143,26 +157,28 @@ impl Lexer {
             continue;
         }
 
-        // The loop above should have made sure that we are dealing with valid bytes in range,
-        // so it is ok to use from_utf8_lossy and direct indexing to avoid having to unwrap things.
-        let value = String::from_utf8_lossy(&self.source[index_start..self.index]).into_owned();
+        // NOTE: The loop above should have made sure that the range is in bounds and consists of
+        // valid bytes only, making the Err arm of this match practically unreachable. However, I
+        // don't think this code is really "waterproof" per se, so TODO: some form of error
+        // handling should be done in the future.
+        let value = str::from_utf8(&self.source[index_start..self.index]).unwrap();
 
         // This logic follows Inko's implementation.
         //
         // If we did a simple match against all keywords, each identifier
         // would need to be run through every match arm before exiting.
         let kind = match value.len() {
-            2 => match value.as_str() {
+            2 => match value {
                 "if" => TokenKind::If,
                 "in" => TokenKind::In,
                 _ => TokenKind::Identifier,
             },
-            3 => match value.as_str() {
+            3 => match value {
                 "for" => TokenKind::For,
                 "try" => TokenKind::Try,
                 _ => TokenKind::Identifier,
             },
-            4 => match value.as_str() {
+            4 => match value {
                 "base" => TokenKind::Base,
                 "case" => TokenKind::Case,
                 "else" => TokenKind::Else,
@@ -172,7 +188,7 @@ impl Lexer {
                 "true" => TokenKind::True,
                 _ => TokenKind::Identifier,
             },
-            5 => match value.as_str() {
+            5 => match value {
                 "break" => TokenKind::Break,
                 "catch" => TokenKind::Catch,
                 "class" => TokenKind::Class,
@@ -185,7 +201,7 @@ impl Lexer {
                 "yield" => TokenKind::Yield,
                 _ => TokenKind::Identifier,
             },
-            6 => match value.as_str() {
+            6 => match value {
                 "delete" => TokenKind::Delete,
                 "resume" => TokenKind::Resume,
                 "return" => TokenKind::Return,
@@ -194,35 +210,37 @@ impl Lexer {
                 "typeof" => TokenKind::Typeof,
                 _ => TokenKind::Identifier,
             },
-            7 => match value.as_str() {
+            7 => match value {
                 "default" => TokenKind::Default,
                 "extends" => TokenKind::Extends,
                 "foreach" => TokenKind::Foreach,
                 "rawcall" => TokenKind::Rawcall,
                 _ => TokenKind::Identifier,
             },
-            8 => match value.as_str() {
+            8 => match value {
                 "__FILE__" => TokenKind::File,
                 "__LINE__" => TokenKind::Line,
                 "continue" => TokenKind::Continue,
                 "function" => TokenKind::Function,
                 _ => TokenKind::Identifier,
             },
-            10 => match value.as_str() {
+            10 => match value {
                 "instanceof" => TokenKind::InstanceOf,
                 _ => TokenKind::Identifier,
             },
-            11 => match value.as_str() {
+            11 => match value {
                 "constructor" => TokenKind::Constructor,
                 _ => TokenKind::Identifier,
             },
             _ => TokenKind::Identifier,
         };
 
-        let position = Position::new((self.line, self.line), (column_start, self.column - 1));
-
         if kind == TokenKind::Identifier {
-            Some(Ok(Token::new(kind, value, position)))
+            Some(Ok(self.token_on_line_with_value(kind, value, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(kind, column_start)))
+        }
+    }
         } else {
             Some(Ok(Token::new(kind, "".to_string(), position)))
         }
