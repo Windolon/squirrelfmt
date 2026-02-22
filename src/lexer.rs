@@ -6,6 +6,19 @@ const LOWER_A: u8 = 97;
 const LOWER_Z: u8 = 122;
 const ZERO: u8 = 48;
 const NINE: u8 = 57;
+const EXCLAMATION: u8 = 33;
+const EQUAL: u8 = 61;
+const PERCENT: u8 = 37;
+const AMPERSAND: u8 = 38;
+const ASTERISK: u8 = 42;
+const PLUS: u8 = 43;
+const MINUS: u8 = 45;
+const SLASH: u8 = 47;
+const LESS_THAN: u8 = 60;
+const GREATER_THAN: u8 = 62;
+const CARET: u8 = 94;
+const BAR: u8 = 124;
+const TILDE: u8 = 126;
 
 #[derive(Debug, PartialEq)]
 struct Position {
@@ -67,6 +80,37 @@ pub enum TokenKind {
     InstanceOf,
     Constructor,
     Identifier,
+    Not,
+    Neq,
+    Mod,
+    ModAssign,
+    BitAnd,
+    And,
+    Mult,
+    MultAssign,
+    Add,
+    Increment,
+    AddAssign,
+    Sub,
+    Decrement,
+    SubAssign,
+    Div,
+    DivAssign,
+    Lt,
+    Ins,
+    BitLeft,
+    Le,
+    Spaceship,
+    Assign,
+    Eq,
+    Gt,
+    Ge,
+    BitRight,
+    UnsignedRight,
+    BitXor,
+    BitOr,
+    Or,
+    BitNot,
 }
 
 #[derive(Debug, PartialEq)]
@@ -109,6 +153,19 @@ impl Lexer {
         match self.current_byte() {
             NULL => self.eof(),
             UPPER_A..=UPPER_Z | LOWER_A..=LOWER_Z | UNDERSCORE => self.identifier_or_keyword(),
+            EXCLAMATION => self.exclamation(),
+            PERCENT => self.percent(),
+            AMPERSAND => self.ampersand(),
+            ASTERISK => self.asterisk(),
+            PLUS => self.plus(),
+            MINUS => self.minus(),
+            SLASH => self.slash(),
+            LESS_THAN => self.less_than(),
+            EQUAL => self.equal(),
+            GREATER_THAN => self.greater_than(),
+            CARET => self.caret(),
+            BAR => self.bar(),
+            TILDE => self.tilde(),
             _ => todo!(),
         }
     }
@@ -241,9 +298,162 @@ impl Lexer {
             Some(Ok(self.token_on_line(kind, column_start)))
         }
     }
+
+    fn exclamation(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == EQUAL {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::Neq, column_start)))
         } else {
-            Some(Ok(Token::new(kind, "".to_string(), position)))
+            Some(Ok(self.token_on_line(TokenKind::Not, column_start)))
         }
+    }
+
+    fn percent(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == EQUAL {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::ModAssign, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(TokenKind::Mod, column_start)))
+        }
+    }
+
+    fn ampersand(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == AMPERSAND {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::And, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(TokenKind::BitAnd, column_start)))
+        }
+    }
+
+    fn asterisk(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == EQUAL {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::MultAssign, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(TokenKind::Mult, column_start)))
+        }
+    }
+
+    fn plus(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            PLUS => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::Increment, column_start)))
+            }
+            EQUAL => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::AddAssign, column_start)))
+            }
+            _ => Some(Ok(self.token_on_line(TokenKind::Add, column_start))),
+        }
+    }
+
+    fn minus(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            MINUS => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::Decrement, column_start)))
+            }
+            EQUAL => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::SubAssign, column_start)))
+            }
+            _ => Some(Ok(self.token_on_line(TokenKind::Sub, column_start))),
+        }
+    }
+
+    fn slash(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            EQUAL => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::DivAssign, column_start)))
+            }
+            // Comment.
+            SLASH => todo!(),
+            _ => Some(Ok(self.token_on_line(TokenKind::Div, column_start))),
+        }
+    }
+
+    fn less_than(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            MINUS => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::Ins, column_start)))
+            }
+            LESS_THAN => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::BitLeft, column_start)))
+            }
+            EQUAL => match self.advance_char() {
+                GREATER_THAN => {
+                    self.advance_char();
+                    Some(Ok(self.token_on_line(TokenKind::Spaceship, column_start)))
+                }
+                _ => Some(Ok(self.token_on_line(TokenKind::Le, column_start))),
+            },
+            _ => Some(Ok(self.token_on_line(TokenKind::Lt, column_start))),
+        }
+    }
+
+    fn equal(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == EQUAL {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::Eq, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(TokenKind::Assign, column_start)))
+        }
+    }
+
+    fn greater_than(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            EQUAL => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::Ge, column_start)))
+            }
+            GREATER_THAN => match self.advance_char() {
+                GREATER_THAN => {
+                    self.advance_char();
+                    Some(Ok(
+                        self.token_on_line(TokenKind::UnsignedRight, column_start)
+                    ))
+                }
+                _ => Some(Ok(self.token_on_line(TokenKind::BitRight, column_start))),
+            },
+            _ => Some(Ok(self.token_on_line(TokenKind::Gt, column_start))),
+        }
+    }
+
+    fn caret(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        self.advance_char();
+        Some(Ok(self.token_on_line(TokenKind::BitXor, column_start)))
+    }
+
+    fn bar(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        if self.advance_char() == BAR {
+            self.advance_char();
+            Some(Ok(self.token_on_line(TokenKind::Or, column_start)))
+        } else {
+            Some(Ok(self.token_on_line(TokenKind::BitOr, column_start)))
+        }
+    }
+
+    fn tilde(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        self.advance_char();
+        Some(Ok(self.token_on_line(TokenKind::BitNot, column_start)))
     }
 
     fn current_byte(&self) -> u8 {
@@ -398,5 +608,41 @@ mod tests {
         assert_eq!(tok_from_with_next("__DumpScope"), tok_wrapped_with_next(Identifier, "__DumpScope", (1, 1), (1, 11)));
         assert_eq!(tok_from_with_next("__0foobarbaz"), tok_wrapped_with_next(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
         assert_eq!(tok_from_with_next("___0123456789"), tok_wrapped_with_next(Identifier, "___0123456789", (1, 1), (1, 13)));
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn operators() {
+        assert_eq!(tok_from_with_next("!"), tok_wrapped_with_next(Not, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("!="), tok_wrapped_with_next(Neq, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("%"), tok_wrapped_with_next(Mod, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("%="), tok_wrapped_with_next(ModAssign, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("&"), tok_wrapped_with_next(BitAnd, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("&&"), tok_wrapped_with_next(And, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("*"), tok_wrapped_with_next(Mult, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("*="), tok_wrapped_with_next(MultAssign, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("+"), tok_wrapped_with_next(Add, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("++"), tok_wrapped_with_next(Increment, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("+="), tok_wrapped_with_next(AddAssign, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("-"), tok_wrapped_with_next(Sub, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("--"), tok_wrapped_with_next(Decrement, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("-="), tok_wrapped_with_next(SubAssign, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("/"), tok_wrapped_with_next(Div, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("/="), tok_wrapped_with_next(DivAssign, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("<"), tok_wrapped_with_next(Lt, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("<-"), tok_wrapped_with_next(Ins, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("<<"), tok_wrapped_with_next(BitLeft, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("<="), tok_wrapped_with_next(Le, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("<=>"), tok_wrapped_with_next(Spaceship, "", (1, 1), (1, 3)));
+        assert_eq!(tok_from_with_next("="), tok_wrapped_with_next(Assign, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("=="), tok_wrapped_with_next(Eq, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next(">"), tok_wrapped_with_next(Gt, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next(">="), tok_wrapped_with_next(Ge, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next(">>"), tok_wrapped_with_next(BitRight, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next(">>>"), tok_wrapped_with_next(UnsignedRight, "", (1, 1), (1, 3)));
+        assert_eq!(tok_from_with_next("^"), tok_wrapped_with_next(BitXor, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("|"), tok_wrapped_with_next(BitOr, "", (1, 1), (1, 1)));
+        assert_eq!(tok_from_with_next("||"), tok_wrapped_with_next(Or, "", (1, 1), (1, 2)));
+        assert_eq!(tok_from_with_next("~"), tok_wrapped_with_next(BitNot, "", (1, 1), (1, 1)));
     }
 }
