@@ -498,8 +498,24 @@ impl Lexer {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum LexerError {
+pub enum LexerErrorKind {
+    /// An unexpected symbol was encountered outside of comments or strings.
     UnexpectedSymbol,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct LexerError {
+    pub kind: LexerErrorKind,
+    pub position: Position,
+}
+
+impl LexerError {
+    fn new(kind: LexerErrorKind, line: u32, column: u32) -> Self {
+        Self {
+            kind,
+            position: Position::new(line, column),
+        }
+    }
 }
 
 #[cfg(test)]
