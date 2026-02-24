@@ -191,7 +191,6 @@ impl Lexer {
             CARET => self.caret(),
             BAR => self.bar(),
             TILDE => self.tilde(),
-            _ => todo!(),
             COMMA => self.comma(),
             PAREN_OPEN | PAREN_CLOSE => self.paren(),
             SQUARE_OPEN | SQUARE_CLOSE => self.square(),
@@ -199,6 +198,14 @@ impl Lexer {
             DOT => self.dot(),
             COLON => self.colon(),
             SEMICOLON => self.semicolon(),
+            _ => {
+                self.terminate();
+                Some(Err(LexerError::new(
+                    LexerErrorKind::UnexpectedSymbol,
+                    self.line,
+                    self.column,
+                )))
+            }
         }
     }
 
@@ -600,6 +607,13 @@ impl Lexer {
         self.line += 1;
         self.column = 1;
     }
+
+    /// Terminates the lexer so that all subsequent calls of [`next_token`](Lexer::next_token)
+    /// return `None`.
+    fn terminate(&mut self) {
+        self.did_send_eof = true;
+        self.index = self.source.len();
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -626,6 +640,7 @@ impl LexerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use LexerErrorKind::*;
     use TokenKind::*;
 
     fn token(
@@ -796,5 +811,15 @@ mod tests {
         assert_eq!(token_from_withnext(":"), token_withnext(Colon, "", (1, 1), (1, 1)));
         assert_eq!(token_from_withnext("::"), token_withnext(ScopeRes, "", (1, 1), (1, 2)));
         assert_eq!(token_from_withnext(";"), token_withnext(Semicolon, "", (1, 1), (1, 1)));
+    }
+
+    #[test]
+    fn unexpected_symbol() {
+        let mut lexer = Lexer::new("ändern");
+        assert_eq!(
+            lexer.next_token(),
+            Some(Err(LexerError::new(UnexpectedSymbol, 1, 1)))
+        );
+        assert_eq!(lexer.next_token(), None);
     }
 }
