@@ -19,6 +19,7 @@ const GREATER_THAN: u8 = 62;
 const CARET: u8 = 94;
 const BAR: u8 = 124;
 const TILDE: u8 = 126;
+const COMMA: u8 = 44;
 
 #[derive(Debug, PartialEq)]
 pub struct Position {
@@ -112,6 +113,7 @@ pub enum TokenKind {
     BitOr,
     Or,
     BitNot,
+    Comma,
 }
 
 #[derive(Debug, PartialEq)]
@@ -170,6 +172,7 @@ impl Lexer {
             BAR => self.bar(),
             TILDE => self.tilde(),
             _ => todo!(),
+            COMMA => self.comma(),
         }
     }
 
@@ -467,6 +470,12 @@ impl Lexer {
         Some(Ok(self.token_on_line(TokenKind::BitNot, column_start)))
     }
 
+    fn comma(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        self.advance_char();
+        Some(Ok(self.token_on_line(TokenKind::Comma, column_start)))
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -674,5 +683,6 @@ mod tests {
         assert_eq!(token_from_withnext("|"), token_withnext(BitOr, "", (1, 1), (1, 1)));
         assert_eq!(token_from_withnext("||"), token_withnext(Or, "", (1, 1), (1, 2)));
         assert_eq!(token_from_withnext("~"), token_withnext(BitNot, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext(","), token_withnext(Comma, "", (1, 1), (1, 1)));
     }
 }
