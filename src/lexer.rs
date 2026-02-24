@@ -20,6 +20,15 @@ const CARET: u8 = 94;
 const BAR: u8 = 124;
 const TILDE: u8 = 126;
 const COMMA: u8 = 44;
+const PAREN_OPEN: u8 = 40;
+const PAREN_CLOSE: u8 = 41;
+const SQUARE_OPEN: u8 = 91;
+const SQUARE_CLOSE: u8 = 93;
+const BRACE_OPEN: u8 = 123;
+const BRACE_CLOSE: u8 = 125;
+const DOT: u8 = 46;
+const COLON: u8 = 58;
+const SEMICOLON: u8 = 59;
 
 #[derive(Debug, PartialEq)]
 pub struct Position {
@@ -114,6 +123,17 @@ pub enum TokenKind {
     Or,
     BitNot,
     Comma,
+    ParenOpen,
+    ParenClose,
+    SquareOpen,
+    SquareClose,
+    BraceOpen,
+    BraceClose,
+    Dot,
+    Ellipsis,
+    Colon,
+    ScopeRes,
+    Semicolon,
 }
 
 #[derive(Debug, PartialEq)]
@@ -173,6 +193,12 @@ impl Lexer {
             TILDE => self.tilde(),
             _ => todo!(),
             COMMA => self.comma(),
+            PAREN_OPEN | PAREN_CLOSE => self.paren(),
+            SQUARE_OPEN | SQUARE_CLOSE => self.square(),
+            BRACE_OPEN | BRACE_CLOSE => self.brace(),
+            DOT => self.dot(),
+            COLON => self.colon(),
+            SEMICOLON => self.semicolon(),
         }
     }
 
@@ -476,6 +502,76 @@ impl Lexer {
         Some(Ok(self.token_on_line(TokenKind::Comma, column_start)))
     }
 
+    fn paren(&mut self) -> Option<Result<Token, LexerError>> {
+        // TODO: This is really bad code and doesn't look right, improve this and
+        // other derived methods?
+        let column_start = self.column;
+        let current_byte = self.current_byte();
+        self.advance_char();
+        let token = match current_byte {
+            PAREN_OPEN => self.token_on_line(TokenKind::ParenOpen, column_start),
+            PAREN_CLOSE => self.token_on_line(TokenKind::ParenClose, column_start),
+            _ => unreachable!(),
+        };
+        Some(Ok(token))
+    }
+
+    fn square(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        let current_byte = self.current_byte();
+        self.advance_char();
+        let token = match current_byte {
+            SQUARE_OPEN => self.token_on_line(TokenKind::SquareOpen, column_start),
+            SQUARE_CLOSE => self.token_on_line(TokenKind::SquareClose, column_start),
+            _ => unreachable!(),
+        };
+        Some(Ok(token))
+    }
+
+    fn brace(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        let current_byte = self.current_byte();
+        self.advance_char();
+        let token = match current_byte {
+            BRACE_OPEN => self.token_on_line(TokenKind::BraceOpen, column_start),
+            BRACE_CLOSE => self.token_on_line(TokenKind::BraceClose, column_start),
+            _ => unreachable!(),
+        };
+        Some(Ok(token))
+    }
+
+    fn dot(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            DOT => match self.advance_char() {
+                DOT => {
+                    self.advance_char();
+                    Some(Ok(self.token_on_line(TokenKind::Ellipsis, column_start)))
+                }
+                // ".." is invalid and should return an error
+                _ => todo!(),
+            },
+            _ => Some(Ok(self.token_on_line(TokenKind::Dot, column_start))),
+        }
+    }
+
+    fn colon(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            COLON => {
+                self.advance_char();
+                Some(Ok(self.token_on_line(TokenKind::ScopeRes, column_start)))
+            }
+            _ => Some(Ok(self.token_on_line(TokenKind::Colon, column_start))),
+        }
+    }
+
+    fn semicolon(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        self.advance_char();
+        Some(Ok(self.token_on_line(TokenKind::Semicolon, column_start)))
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -684,5 +780,21 @@ mod tests {
         assert_eq!(token_from_withnext("||"), token_withnext(Or, "", (1, 1), (1, 2)));
         assert_eq!(token_from_withnext("~"), token_withnext(BitNot, "", (1, 1), (1, 1)));
         assert_eq!(token_from_withnext(","), token_withnext(Comma, "", (1, 1), (1, 1)));
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn misc_tokens() {
+        assert_eq!(token_from_withnext("("), token_withnext(ParenOpen, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext(")"), token_withnext(ParenClose, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("["), token_withnext(SquareOpen, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("]"), token_withnext(SquareClose, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("{"), token_withnext(BraceOpen, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("}"), token_withnext(BraceClose, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("."), token_withnext(Dot, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("..."), token_withnext(Ellipsis, "", (1, 1), (1, 3)));
+        assert_eq!(token_from_withnext(":"), token_withnext(Colon, "", (1, 1), (1, 1)));
+        assert_eq!(token_from_withnext("::"), token_withnext(ScopeRes, "", (1, 1), (1, 2)));
+        assert_eq!(token_from_withnext(";"), token_withnext(Semicolon, "", (1, 1), (1, 1)));
     }
 }
