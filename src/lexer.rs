@@ -29,6 +29,8 @@ const BRACE_CLOSE: u8 = 125;
 const DOT: u8 = 46;
 const COLON: u8 = 58;
 const SEMICOLON: u8 = 59;
+const BACKSLASH: u8 = 92;
+const APOSTROPHE: u8 = 39;
 
 #[derive(Debug, PartialEq)]
 pub struct Position {
@@ -134,6 +136,7 @@ pub enum TokenKind {
     Colon,
     ScopeRes,
     Semicolon,
+    Char,
 }
 
 #[derive(Debug, PartialEq)]
@@ -198,6 +201,7 @@ impl Lexer {
             DOT => self.dot(),
             COLON => self.colon(),
             SEMICOLON => self.semicolon(),
+            APOSTROPHE => self.char(),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -579,6 +583,55 @@ impl Lexer {
         Some(Ok(self.token_on_line(TokenKind::Semicolon, column_start)))
     }
 
+    fn char(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            // ''
+            APOSTROPHE => {
+                self.terminate();
+                Some(Err(LexerError::new(
+                    LexerErrorKind::EmptyChar,
+                    self.line,
+                    self.column,
+                )))
+            }
+            // '\<escape>
+            BACKSLASH => todo!(),
+            // '<ascii>
+            0..=127 => match self.advance_char() {
+                // '<ascii>': correct char
+                APOSTROPHE => {
+                    let index_start = self.index - 1;
+                    self.advance_char();
+                    let value = str::from_utf8(&self.source[index_start..self.index - 1]).unwrap();
+                    Some(Ok(self.token_on_line_with_value(
+                        TokenKind::Char,
+                        value,
+                        column_start,
+                    )))
+                }
+                // '<ascii><other>: char is too long
+                _ => {
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::CharTooLong,
+                        self.line,
+                        self.column,
+                    )))
+                }
+            },
+            // '<non-ascii>
+            _ => {
+                self.terminate();
+                Some(Err(LexerError::new(
+                    LexerErrorKind::CharOutOfBounds,
+                    self.line,
+                    self.column,
+                )))
+            }
+        }
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -620,6 +673,13 @@ impl Lexer {
 pub enum LexerErrorKind {
     /// An unexpected symbol was encountered outside of comments or strings.
     UnexpectedSymbol,
+    /// A symbol outside of the ASCII range (0 to 127 inclusive) was encountered in a `char`-like
+    /// literal.
+    CharOutOfBounds,
+    /// More than one symbol were encountered in a `char`-like literal.
+    CharTooLong,
+    /// An empty `char`-like literal was encountered, i.e. `''`.
+    EmptyChar,
 }
 
 #[derive(Debug, PartialEq)]
@@ -659,6 +719,14 @@ mod tests {
         end: (u32, u32),
     ) -> Vec<Option<Result<Token, LexerError>>> {
         vec![token(kind, value, start, end), token(Eof, "", end, end)]
+    }
+
+    fn error_withnext(
+        kind: LexerErrorKind,
+        line: u32,
+        column: u32,
+    ) -> Vec<Option<Result<Token, LexerError>>> {
+        vec![Some(Err(LexerError::new(kind, line, column))), None]
     }
 
     fn token_from_withnext(source: &str) -> Vec<Option<Result<Token, LexerError>>> {
@@ -821,5 +889,34 @@ mod tests {
             Some(Err(LexerError::new(UnexpectedSymbol, 1, 1)))
         );
         assert_eq!(lexer.next_token(), None);
+    }
+
+    #[test]
+    fn char() {
+        assert_eq!(
+            token_from_withnext("'f'"),
+            token_withnext(Char, "f", (1, 1), (1, 3))
+        );
+    }
+
+    #[test]
+    fn char_oob() {
+        assert_eq!(
+            token_from_withnext("'Ü'"),
+            error_withnext(CharOutOfBounds, 1, 2)
+        )
+    }
+
+    #[test]
+    fn char_too_long() {
+        assert_eq!(
+            token_from_withnext("'xd'"),
+            error_withnext(CharTooLong, 1, 3)
+        )
+    }
+
+    #[test]
+    fn char_empty() {
+        assert_eq!(token_from_withnext("''"), error_withnext(EmptyChar, 1, 2))
     }
 }
