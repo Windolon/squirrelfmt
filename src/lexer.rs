@@ -32,6 +32,8 @@ const SEMICOLON: u8 = 59;
 const BACKSLASH: u8 = 92;
 const APOSTROPHE: u8 = 39;
 
+/// Represents a symbol's exact location in source code.
+// TODO: How does unicode chars affect this counter?
 #[derive(Debug, PartialEq)]
 pub struct Position {
     line: u32,
@@ -39,10 +41,12 @@ pub struct Position {
 }
 
 impl Position {
+    /// Returns the line number of this position.
     pub fn line(&self) -> u32 {
         self.line
     }
 
+    /// Returns the column number of this position.
     pub fn column(&self) -> u32 {
         self.column
     }
@@ -52,93 +56,180 @@ impl Position {
     }
 }
 
+/// The kind of [`Token`].
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
+    /// Signifies the end of file.
     Eof,
+    /// The `if` keyword.
     If,
+    /// The `in` keyword.
     In,
+    /// The `for` keyword.
     For,
+    /// The `try` keyword.
     Try,
+    /// The `base` keyword.
     Base,
+    /// The `case` keyword.
     Case,
+    /// The `else` keyword.
     Else,
+    /// The `enum` keyword.
     Enum,
+    /// The `null` keyword.
     Null,
+    /// The `this` keyword.
     This,
+    /// The `true` keyword.
     True,
+    /// The `break` keyword.
     Break,
+    /// The `catch` keyword.
     Catch,
+    /// The `class` keyword.
     Class,
+    /// The `clone` keyword.
     Clone,
+    /// The `const` keyword.
     Const,
+    /// The `false` keyword.
     False,
+    /// The `local` keyword.
     Local,
+    /// The `throw` keyword.
     Throw,
+    /// The `while` keyword.
     While,
+    /// The `yield` keyword.
     Yield,
+    /// The `delete` keyword.
     Delete,
+    /// The `resume` keyword.
     Resume,
+    /// The `return` keyword.
     Return,
+    /// The `static` keyword.
     Static,
+    /// The `switch` keyword.
     Switch,
+    /// The `typeof` keyword.
     Typeof,
+    /// The `default` keyword.
     Default,
+    /// The `extends` keyword.
     Extends,
+    /// The `foreach` keyword.
     Foreach,
+    /// The `rawcall` keyword.
     Rawcall,
+    /// The `__FILE__` keyword.
     File,
+    /// The `__LINE__` keyword.
     Line,
+    /// The `continue` keyword.
     Continue,
+    /// The `function` keyword.
     Function,
+    /// The `instanceof` keyword.
     InstanceOf,
+    /// The `constructor` keyword.
     Constructor,
+    /// An identifier.
     Identifier,
+    /// The `!` operator.
     Not,
+    /// The `!=` operator.
     Neq,
+    /// The `%` operator.
     Mod,
+    /// The `%=` operator.
     ModAssign,
+    /// The `&` operator.
     BitAnd,
+    /// The `&&` operator.
     And,
+    /// The `*` operator.
     Mult,
+    /// The `*=` operator.
     MultAssign,
+    /// The `+` operator.
     Add,
+    /// The `++` operator.
     Increment,
+    /// The `+=` operator.
     AddAssign,
+    /// The `-` operator.
     Sub,
+    /// The `--` operator.
     Decrement,
+    /// The `-=` operator.
     SubAssign,
+    /// The `/` operator.
     Div,
+    /// The `/=` operator.
     DivAssign,
+    /// The `<` operator.
     Lt,
+    /// The `<-` operator.
     Ins,
+    /// The `<<` operator.
     BitLeft,
+    /// The `<=` operator.
     Le,
+    /// The `<=>` operator. Also known as the three-way comparison operator.
     Spaceship,
+    /// The `=` operator.
     Assign,
+    /// The `==` operator.
     Eq,
+    /// The `>` operator.
     Gt,
+    /// The `>=` operator.
     Ge,
+    /// The `>>` operator.
     BitRight,
+    /// The `>>>` operator.
     UnsignedRight,
+    /// The `^` operator.
     BitXor,
+    /// The `|` operator.
     BitOr,
+    /// The `||` operator.
     Or,
+    /// The `~` operator.
     BitNot,
+    /// The `,` operator, or the separator used in function argument lists, tables and arrays.
     Comma,
+    /// An opening parenthesis `(`.
     ParenOpen,
+    /// A closing parenthesis `)`.
     ParenClose,
+    /// An opening square bracket `[`.
     SquareOpen,
+    /// A closing square bracket `]`.
     SquareClose,
+    /// An opening brace / curly bracket `{`.
     BraceOpen,
+    /// A closing brace / curly bracket `}`.
     BraceClose,
+    /// A dot `.`.
     Dot,
+    /// An ellipsis `...`, seen in function argument lists.
     Ellipsis,
+    /// A colon `:`.
     Colon,
+    /// A scope resolution symbol `::`.
+    // TODO: Is this an operator?
     ScopeRes,
+    /// A semicolon `;`.
     Semicolon,
+    /// A `char`-like literal, e.g. `'a'`.
     Char,
 }
 
+/// A token consisting of its [`TokenKind`], value if any, and its starting and ending position in
+/// source code.
 #[derive(Debug, PartialEq)]
 pub struct Token {
     kind: TokenKind,
@@ -158,6 +249,7 @@ impl Token {
     }
 }
 
+/// The main lexing object that takes in a source string and returns a stream of tokens.
 pub struct Lexer {
     source: Vec<u8>,
     index: usize,
@@ -167,6 +259,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    /// Creates a new Lexer from the input source string.
     pub fn new(source: &str) -> Self {
         Self {
             source: source.bytes().collect(),
@@ -177,6 +270,7 @@ impl Lexer {
         }
     }
 
+    /// Returns the next token.
     pub fn next_token(&mut self) -> Option<Result<Token, LexerError>> {
         match self.current_byte() {
             NULL => self.eof(),
@@ -664,6 +758,7 @@ impl Lexer {
     }
 }
 
+/// The kind of [`LexerError`].
 #[derive(Debug, PartialEq)]
 pub enum LexerErrorKind {
     /// An unexpected symbol was encountered outside of comments or strings.
@@ -677,9 +772,12 @@ pub enum LexerErrorKind {
     EmptyChar,
 }
 
+/// An object returned by the [`Lexer`] when it encounters an error.
 #[derive(Debug, PartialEq)]
 pub struct LexerError {
+    /// The kind of error encountered.
     pub kind: LexerErrorKind,
+    /// The position of this error in source code.
     pub position: Position,
 }
 
