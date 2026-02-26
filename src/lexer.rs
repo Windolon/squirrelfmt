@@ -213,15 +213,12 @@ impl Lexer {
         }
     }
 
-    /// Returns a token of `kind`, having an empty `String` as its `value` and
-    /// spanning only on the current line of the lexer.
-    /// Column-wise, it spans from `start` to one column before the lexer, inclusive.
+    // Call this when new token ends precisely at one column before the lexer
     fn token_on_line(&self, kind: TokenKind, start: u32) -> Token {
         self.token_on_line_with_value(kind, "", start)
     }
 
-    /// Returns a token of `kind` and `value`, that spans only on the current line of the lexer.
-    /// Column-wise, it spans from `start` to one column before the lexer, inclusive.
+    // Call this when new token ends precisely at one column before the lexer
     fn token_on_line_with_value(&self, kind: TokenKind, value: &str, start: u32) -> Token {
         Token::new(
             kind,
@@ -661,8 +658,6 @@ impl Lexer {
         self.column = 1;
     }
 
-    /// Terminates the lexer so that all subsequent calls of [`next_token`](Lexer::next_token)
-    /// return `None`.
     fn terminate(&mut self) {
         self.did_send_eof = true;
         self.index = self.source.len();
