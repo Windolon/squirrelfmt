@@ -1,36 +1,36 @@
 const NULL: u8 = 0;
+const EXCLAMATION: u8 = 33;
+const PERCENT: u8 = 37;
+const AMPERSAND: u8 = 38;
+const APOSTROPHE: u8 = 39;
+const PAREN_OPEN: u8 = 40;
+const PAREN_CLOSE: u8 = 41;
+const ASTERISK: u8 = 42;
+const PLUS: u8 = 43;
+const COMMA: u8 = 44;
+const MINUS: u8 = 45;
+const DOT: u8 = 46;
+const SLASH: u8 = 47;
+const ZERO: u8 = 48;
+const NINE: u8 = 57;
+const COLON: u8 = 58;
+const SEMICOLON: u8 = 59;
+const LESS_THAN: u8 = 60;
+const EQUAL: u8 = 61;
+const GREATER_THAN: u8 = 62;
 const UPPER_A: u8 = 65;
 const UPPER_Z: u8 = 90;
+const SQUARE_OPEN: u8 = 91;
+const BACKSLASH: u8 = 92;
+const SQUARE_CLOSE: u8 = 93;
+const CARET: u8 = 94;
 const UNDERSCORE: u8 = 95;
 const LOWER_A: u8 = 97;
 const LOWER_Z: u8 = 122;
-const ZERO: u8 = 48;
-const NINE: u8 = 57;
-const EXCLAMATION: u8 = 33;
-const EQUAL: u8 = 61;
-const PERCENT: u8 = 37;
-const AMPERSAND: u8 = 38;
-const ASTERISK: u8 = 42;
-const PLUS: u8 = 43;
-const MINUS: u8 = 45;
-const SLASH: u8 = 47;
-const LESS_THAN: u8 = 60;
-const GREATER_THAN: u8 = 62;
-const CARET: u8 = 94;
-const BAR: u8 = 124;
-const TILDE: u8 = 126;
-const COMMA: u8 = 44;
-const PAREN_OPEN: u8 = 40;
-const PAREN_CLOSE: u8 = 41;
-const SQUARE_OPEN: u8 = 91;
-const SQUARE_CLOSE: u8 = 93;
 const BRACE_OPEN: u8 = 123;
+const BAR: u8 = 124;
 const BRACE_CLOSE: u8 = 125;
-const DOT: u8 = 46;
-const COLON: u8 = 58;
-const SEMICOLON: u8 = 59;
-const BACKSLASH: u8 = 92;
-const APOSTROPHE: u8 = 39;
+const TILDE: u8 = 126;
 
 /// Represents a symbol's exact location in source code.
 // TODO: How does unicode chars affect this counter?
@@ -59,173 +59,173 @@ impl Position {
 /// The kind of [`Token`].
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
-    /// Signifies the end of file.
-    Eof,
-    /// The `if` keyword.
-    If,
-    /// The `in` keyword.
-    In,
-    /// The `for` keyword.
-    For,
-    /// The `try` keyword.
-    Try,
+    /// The `+` operator.
+    Add,
+    /// The `+=` operator.
+    AddAssign,
+    /// The `&&` operator.
+    And,
+    /// The `=` operator.
+    Assign,
     /// The `base` keyword.
     Base,
-    /// The `case` keyword.
-    Case,
-    /// The `else` keyword.
-    Else,
-    /// The `enum` keyword.
-    Enum,
-    /// The `null` keyword.
-    Null,
-    /// The `this` keyword.
-    This,
-    /// The `true` keyword.
-    True,
+    /// The `&` operator.
+    BitAnd,
+    /// The `<<` operator.
+    BitLeft,
+    /// The `~` operator.
+    BitNot,
+    /// The `|` operator.
+    BitOr,
+    /// The `>>` operator.
+    BitRight,
+    /// The `^` operator.
+    BitXor,
+    /// A closing brace / curly bracket `}`.
+    BraceClose,
+    /// An opening brace / curly bracket `{`.
+    BraceOpen,
     /// The `break` keyword.
     Break,
+    /// The `case` keyword.
+    Case,
     /// The `catch` keyword.
     Catch,
+    /// A `char`-like literal, e.g. `'a'`.
+    Char,
     /// The `class` keyword.
     Class,
     /// The `clone` keyword.
     Clone,
+    /// A colon `:`.
+    Colon,
+    /// The `,` operator, or the separator used in function argument lists, tables and arrays.
+    Comma,
     /// The `const` keyword.
     Const,
-    /// The `false` keyword.
-    False,
-    /// The `local` keyword.
-    Local,
-    /// The `throw` keyword.
-    Throw,
-    /// The `while` keyword.
-    While,
-    /// The `yield` keyword.
-    Yield,
-    /// The `delete` keyword.
-    Delete,
-    /// The `resume` keyword.
-    Resume,
-    /// The `return` keyword.
-    Return,
-    /// The `static` keyword.
-    Static,
-    /// The `switch` keyword.
-    Switch,
-    /// The `typeof` keyword.
-    Typeof,
-    /// The `default` keyword.
-    Default,
-    /// The `extends` keyword.
-    Extends,
-    /// The `foreach` keyword.
-    Foreach,
-    /// The `rawcall` keyword.
-    Rawcall,
-    /// The `__FILE__` keyword.
-    File,
-    /// The `__LINE__` keyword.
-    Line,
-    /// The `continue` keyword.
-    Continue,
-    /// The `function` keyword.
-    Function,
-    /// The `instanceof` keyword.
-    InstanceOf,
     /// The `constructor` keyword.
     Constructor,
-    /// An identifier.
-    Identifier,
-    /// The `!` operator.
-    Not,
-    /// The `!=` operator.
-    Neq,
-    /// The `%` operator.
-    Mod,
-    /// The `%=` operator.
-    ModAssign,
-    /// The `&` operator.
-    BitAnd,
-    /// The `&&` operator.
-    And,
-    /// The `*` operator.
-    Mult,
-    /// The `*=` operator.
-    MultAssign,
-    /// The `+` operator.
-    Add,
-    /// The `++` operator.
-    Increment,
-    /// The `+=` operator.
-    AddAssign,
-    /// The `-` operator.
-    Sub,
+    /// The `continue` keyword.
+    Continue,
     /// The `--` operator.
     Decrement,
-    /// The `-=` operator.
-    SubAssign,
+    /// The `default` keyword.
+    Default,
+    /// The `delete` keyword.
+    Delete,
     /// The `/` operator.
     Div,
     /// The `/=` operator.
     DivAssign,
-    /// The `<` operator.
-    Lt,
-    /// The `<-` operator.
-    Ins,
-    /// The `<<` operator.
-    BitLeft,
-    /// The `<=` operator.
-    Le,
-    /// The `<=>` operator. Also known as the three-way comparison operator.
-    Spaceship,
-    /// The `=` operator.
-    Assign,
-    /// The `==` operator.
-    Eq,
-    /// The `>` operator.
-    Gt,
-    /// The `>=` operator.
-    Ge,
-    /// The `>>` operator.
-    BitRight,
-    /// The `>>>` operator.
-    UnsignedRight,
-    /// The `^` operator.
-    BitXor,
-    /// The `|` operator.
-    BitOr,
-    /// The `||` operator.
-    Or,
-    /// The `~` operator.
-    BitNot,
-    /// The `,` operator, or the separator used in function argument lists, tables and arrays.
-    Comma,
-    /// An opening parenthesis `(`.
-    ParenOpen,
-    /// A closing parenthesis `)`.
-    ParenClose,
-    /// An opening square bracket `[`.
-    SquareOpen,
-    /// A closing square bracket `]`.
-    SquareClose,
-    /// An opening brace / curly bracket `{`.
-    BraceOpen,
-    /// A closing brace / curly bracket `}`.
-    BraceClose,
     /// A dot `.`.
     Dot,
     /// An ellipsis `...`, seen in function argument lists.
     Ellipsis,
-    /// A colon `:`.
-    Colon,
+    /// The `else` keyword.
+    Else,
+    /// The `enum` keyword.
+    Enum,
+    /// Signifies the end of file.
+    Eof,
+    /// The `==` operator.
+    Eq,
+    /// The `extends` keyword.
+    Extends,
+    /// The `false` keyword.
+    False,
+    /// The `__FILE__` keyword.
+    File,
+    /// The `for` keyword.
+    For,
+    /// The `foreach` keyword.
+    Foreach,
+    /// The `function` keyword.
+    Function,
+    /// The `>=` operator.
+    Ge,
+    /// The `>` operator.
+    Gt,
+    /// An identifier.
+    Identifier,
+    /// The `if` keyword.
+    If,
+    /// The `in` keyword.
+    In,
+    /// The `++` operator.
+    Increment,
+    /// The `<-` operator.
+    Ins,
+    /// The `instanceof` keyword.
+    InstanceOf,
+    /// The `<=` operator.
+    Le,
+    /// The `__LINE__` keyword.
+    Line,
+    /// The `local` keyword.
+    Local,
+    /// The `<` operator.
+    Lt,
+    /// The `%` operator.
+    Mod,
+    /// The `%=` operator.
+    ModAssign,
+    /// The `*` operator.
+    Mult,
+    /// The `*=` operator.
+    MultAssign,
+    /// The `!=` operator.
+    Neq,
+    /// The `!` operator.
+    Not,
+    /// The `null` keyword.
+    Null,
+    /// The `||` operator.
+    Or,
+    /// A closing parenthesis `)`.
+    ParenClose,
+    /// An opening parenthesis `(`.
+    ParenOpen,
+    /// The `rawcall` keyword.
+    Rawcall,
+    /// The `resume` keyword.
+    Resume,
+    /// The `return` keyword.
+    Return,
     /// A scope resolution symbol `::`.
     // TODO: Is this an operator?
     ScopeRes,
     /// A semicolon `;`.
     Semicolon,
-    /// A `char`-like literal, e.g. `'a'`.
-    Char,
+    /// The `<=>` operator. Also known as the three-way comparison operator.
+    Spaceship,
+    /// A closing square bracket `]`.
+    SquareClose,
+    /// An opening square bracket `[`.
+    SquareOpen,
+    /// The `static` keyword.
+    Static,
+    /// The `-` operator.
+    Sub,
+    /// The `-=` operator.
+    SubAssign,
+    /// The `switch` keyword.
+    Switch,
+    /// The `this` keyword.
+    This,
+    /// The `throw` keyword.
+    Throw,
+    /// The `true` keyword.
+    True,
+    /// The `try` keyword.
+    Try,
+    /// The `typeof` keyword.
+    Typeof,
+    /// The `>>>` operator.
+    UnsignedRight,
+    /// The `while` keyword.
+    While,
+    /// The `yield` keyword.
+    Yield,
 }
 
 /// A token consisting of its [`TokenKind`], value if any, and its starting and ending position in
@@ -761,8 +761,6 @@ impl Lexer {
 /// The kind of [`LexerError`].
 #[derive(Debug, PartialEq)]
 pub enum LexerErrorKind {
-    /// An unexpected symbol was encountered outside of comments or strings.
-    UnexpectedSymbol,
     /// A symbol outside of the ASCII range (0 to 127 inclusive) was encountered in a `char`-like
     /// literal.
     CharOutOfBounds,
@@ -770,6 +768,8 @@ pub enum LexerErrorKind {
     CharTooLong,
     /// An empty `char`-like literal was encountered, i.e. `''`.
     EmptyChar,
+    /// An unexpected symbol was encountered outside of comments or strings.
+    UnexpectedSymbol,
 }
 
 /// An object returned by the [`Lexer`] when it encounters an error.
