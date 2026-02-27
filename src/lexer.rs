@@ -1,5 +1,9 @@
+use unicode_segmentation::UnicodeSegmentation;
+
 const NULL: u8 = 0;
+const NEWLINE: u8 = 10;
 const EXCLAMATION: u8 = 33;
+const QUOTATION: u8 = 34;
 const PERCENT: u8 = 37;
 const AMPERSAND: u8 = 38;
 const APOSTROPHE: u8 = 39;
@@ -204,6 +208,8 @@ pub enum TokenKind {
     SquareOpen,
     /// The `static` keyword.
     Static,
+    /// A string.
+    String,
     /// The `-` operator.
     Sub,
     /// The `-=` operator.
@@ -296,6 +302,7 @@ impl Lexer {
             COLON => self.colon(),
             SEMICOLON => self.semicolon(),
             APOSTROPHE => self.char(),
+            QUOTATION => self.string(),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -741,6 +748,47 @@ impl Lexer {
         }
     }
 
+    fn string(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        let index_start = self.index + 1;
+
+        loop {
+            match self.advance_byte() {
+                QUOTATION | NEWLINE | NULL => break,
+                _ => continue,
+            }
+        }
+
+        // self.index points at QUOTATION, NEWLINE or NULL
+        let value = str::from_utf8(&self.source[index_start..self.index]).unwrap();
+        let len = value.graphemes(true).count() as u32;
+
+        match self.current_byte() {
+            // Unclosed
+            NEWLINE | NULL => {
+                let column = column_start + len;
+                self.terminate();
+                Some(Err(LexerError::new(
+                    LexerErrorKind::UnclosedString,
+                    self.line,
+                    column,
+                )))
+            }
+            // Correct string
+            QUOTATION => {
+                self.column += len + 2;
+                // Hmm, can't use advance_byte() here.
+                self.index += 1;
+                Some(Ok(self.token_on_line_with_value(
+                    TokenKind::String,
+                    value,
+                    column_start,
+                )))
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -761,6 +809,13 @@ impl Lexer {
     fn advance_char(&mut self) -> u8 {
         self.index += 1;
         self.column += 1;
+        self.current_byte()
+    }
+
+    // Same as advance_char, but does not increment column count.
+    // You should handle the column logic manually.
+    fn advance_byte(&mut self) -> u8 {
+        self.index += 1;
         self.current_byte()
     }
 
@@ -788,6 +843,8 @@ pub enum LexerErrorKind {
     EmptyChar,
     /// A `char`-like literal was unclosed.
     UnclosedChar,
+    /// A string was unclosed.
+    UnclosedString,
     /// An unexpected symbol was encountered outside of comments or strings.
     UnexpectedSymbol,
 }
@@ -1047,6 +1104,50 @@ mod tests {
         assert_eq!(
             token_from_withnext("'f"),
             error_withnext(UnclosedChar, 1, 2)
+        );
+    }
+
+    #[test]
+    fn string_empty() {
+        assert_eq!(
+            token_from_withnext("\"\""),
+            token_withnext(String, "", (1, 1), (1, 2)),
+        );
+    }
+
+    #[test]
+    fn string() {
+        assert_eq!(
+            token_from_withnext("\" _0aA!$\""),
+            token_withnext(String, " _0aA!$", (1, 1), (1, 9)),
+        );
+    }
+
+    #[test]
+    fn string_unicode() {
+        assert_eq!(
+            token_from_withnext("\"█░█░█░\""),
+            token_withnext(String, "█░█░█░", (1, 1), (1, 8)),
+        );
+    }
+
+    #[test]
+    fn string_unclosed() {
+        assert_eq!(
+            token_from_withnext("\"\n"),
+            error_withnext(UnclosedString, 1, 1),
+        );
+        assert_eq!(
+            token_from_withnext("\""),
+            error_withnext(UnclosedString, 1, 1),
+        );
+        assert_eq!(
+            token_from_withnext("\"a€c\n"),
+            error_withnext(UnclosedString, 1, 4),
+        );
+        assert_eq!(
+            token_from_withnext("\"xöz"),
+            error_withnext(UnclosedString, 1, 4),
         );
     }
 }

@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 description = "Code formatter for Squirrel"
 license = "MPL-2.0"
+
+[dependencies]
+unicode-segmentation = "1.12.0"
