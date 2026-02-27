@@ -997,7 +997,7 @@ mod tests {
         assert_eq!(
             token_from_withnext("'Ü'"),
             error_withnext(CharOutOfBounds, 1, 2)
-        )
+        );
     }
 
     #[test]
@@ -1005,11 +1005,11 @@ mod tests {
         assert_eq!(
             token_from_withnext("'xd'"),
             error_withnext(CharTooLong, 1, 3)
-        )
+        );
     }
 
     #[test]
     fn char_empty() {
-        assert_eq!(token_from_withnext("''"), error_withnext(EmptyChar, 1, 2))
+        assert_eq!(token_from_withnext("''"), error_withnext(EmptyChar, 1, 2));
     }
 }
