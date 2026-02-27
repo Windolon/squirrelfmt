@@ -688,6 +688,14 @@ impl Lexer {
             }
             // '\<escape>
             BACKSLASH => todo!(),
+            NEWLINE => {
+                self.terminate();
+                Some(Err(LexerError::new(
+                    LexerErrorKind::UnclosedChar,
+                    self.line,
+                    column_start,
+                )))
+            }
             // '<ascii>
             0..=127 => match self.advance_char() {
                 // '<ascii>': correct char
@@ -699,6 +707,15 @@ impl Lexer {
                         TokenKind::Char,
                         value,
                         column_start,
+                    )))
+                }
+                // '<ascii><\n>: unclosed char
+                NEWLINE => {
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::UnclosedChar,
+                        self.line,
+                        self.column - 1,
                     )))
                 }
                 // '<ascii><other>: char is too long
@@ -768,6 +785,8 @@ pub enum LexerErrorKind {
     CharTooLong,
     /// An empty `char`-like literal was encountered, i.e. `''`.
     EmptyChar,
+    /// A `char`-like literal was unclosed.
+    UnclosedChar,
     /// An unexpected symbol was encountered outside of comments or strings.
     UnexpectedSymbol,
 }
@@ -1011,5 +1030,17 @@ mod tests {
     #[test]
     fn char_empty() {
         assert_eq!(token_from_withnext("''"), error_withnext(EmptyChar, 1, 2));
+    }
+
+    #[test]
+    fn char_unclosed() {
+        assert_eq!(
+            token_from_withnext("'\n"),
+            error_withnext(UnclosedChar, 1, 1)
+        );
+        assert_eq!(
+            token_from_withnext("'f\n"),
+            error_withnext(UnclosedChar, 1, 2)
+        );
     }
 }
