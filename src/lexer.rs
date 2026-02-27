@@ -677,7 +677,7 @@ impl Lexer {
     fn char(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            // ''
+            // '': empty
             APOSTROPHE => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -688,6 +688,7 @@ impl Lexer {
             }
             // '\<escape>
             BACKSLASH => todo!(),
+            // '<\n>: unclosed
             NEWLINE => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -698,7 +699,7 @@ impl Lexer {
             }
             // '<ascii>
             0..=127 => match self.advance_char() {
-                // '<ascii>': correct char
+                // '<ascii>': correct
                 APOSTROPHE => {
                     let index_start = self.index - 1;
                     self.advance_char();
@@ -709,7 +710,7 @@ impl Lexer {
                         column_start,
                     )))
                 }
-                // '<ascii><\n>: unclosed char
+                // '<ascii><\n>: unclosed
                 NEWLINE => {
                     self.terminate();
                     Some(Err(LexerError::new(
@@ -728,7 +729,7 @@ impl Lexer {
                     )))
                 }
             },
-            // '<non-ascii>
+            // '<non-ascii>: oob
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
