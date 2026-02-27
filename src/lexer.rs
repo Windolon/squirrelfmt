@@ -688,8 +688,8 @@ impl Lexer {
             }
             // '\<escape>
             BACKSLASH => todo!(),
-            // '<\n>: unclosed
-            NEWLINE => {
+            // '<\n> or '<end>: unclosed
+            NEWLINE | NULL => {
                 self.terminate();
                 Some(Err(LexerError::new(
                     LexerErrorKind::UnclosedChar,
@@ -710,8 +710,8 @@ impl Lexer {
                         column_start,
                     )))
                 }
-                // '<ascii><\n>: unclosed
-                NEWLINE => {
+                // '<ascii><\n> or '<ascii><end>: unclosed
+                NEWLINE | NULL => {
                     self.terminate();
                     Some(Err(LexerError::new(
                         LexerErrorKind::UnclosedChar,
@@ -1041,6 +1041,11 @@ mod tests {
         );
         assert_eq!(
             token_from_withnext("'f\n"),
+            error_withnext(UnclosedChar, 1, 2)
+        );
+        assert_eq!(token_from_withnext("'"), error_withnext(UnclosedChar, 1, 1));
+        assert_eq!(
+            token_from_withnext("'f"),
             error_withnext(UnclosedChar, 1, 2)
         );
     }
