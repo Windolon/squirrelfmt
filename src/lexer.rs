@@ -22,6 +22,7 @@ const SEMICOLON: u8 = 59;
 const LESS_THAN: u8 = 60;
 const EQUAL: u8 = 61;
 const GREATER_THAN: u8 = 62;
+const AT: u8 = 64;
 const UPPER_A: u8 = 65;
 const UPPER_Z: u8 = 90;
 const SQUARE_OPEN: u8 = 91;
@@ -228,6 +229,8 @@ pub enum TokenKind {
     Typeof,
     /// The `>>>` operator.
     UnsignedRight,
+    /// A verbatim string.
+    VerbatimString,
     /// The `while` keyword.
     While,
     /// The `yield` keyword.
@@ -303,6 +306,7 @@ impl Lexer {
             SEMICOLON => self.semicolon(),
             APOSTROPHE => self.char(),
             QUOTATION => self.string(),
+            AT => self.at(),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -789,6 +793,148 @@ impl Lexer {
         }
     }
 
+    fn at(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        match self.advance_char() {
+            QUOTATION => self.verbatim_string(self.line, column_start),
+            _ => todo!(),
+        }
+    }
+
+    fn verbatim_string(
+        &mut self,
+        line_start: u32,
+        column_start: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        //                     @"
+        // self.index points at ^
+        let index_start = self.index + 1;
+        let mut last_newline_index = 0;
+
+        loop {
+            match self.advance_byte() {
+                NULL => break,
+                NEWLINE => {
+                    // NOTE: column count will be calculated later in this method
+                    self.line += 1;
+                    // A newline counts as one grapheme, we don't want to include that
+                    last_newline_index = self.index + 1;
+                    continue;
+                }
+                QUOTATION => {
+                    match self.peek_byte() {
+                        QUOTATION => {
+                            //                                       ... ""hello"" ...
+                            // If we don't advance here, the next match will see ^
+                            // and think that the verbatim string has ended
+                            self.advance_byte();
+                            continue;
+                        }
+                        // string ends
+                        _ => break,
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        // self.index points at NULL or QUOTATION
+        match self.current_byte() {
+            // unclosed
+            NULL => {
+                if self.line != line_start {
+                    let mut column = str::from_utf8(
+                        self.source
+                            .get(last_newline_index..self.index)
+                            .unwrap_or(&[]),
+                    )
+                    .unwrap()
+                    .graphemes(true)
+                    .count() as u32;
+
+                    if column == 0 {
+                        column = 1;
+                    }
+
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::UnclosedVerbatimString,
+                        self.line,
+                        column,
+                    )))
+                } else {
+                    let columns =
+                        str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[]))
+                            .unwrap()
+                            .graphemes(true)
+                            .count() as u32;
+
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::UnclosedVerbatimString,
+                        self.line,
+                        //                        @"...
+                        // column_start points at ^, we add one to advance it to the ",
+                        // then advance by however many graphemes there are to the right
+                        column_start + columns + 1,
+                    )))
+                }
+            }
+            // correct
+            QUOTATION => {
+                if self.line != line_start {
+                    let value = String::from_utf8_lossy(
+                        self.source.get(index_start..self.index).unwrap_or(&[]),
+                    )
+                    .into_owned();
+
+                    let column = str::from_utf8(
+                        self.source
+                            .get(last_newline_index..self.index)
+                            .unwrap_or(&[]),
+                    )
+                    .unwrap()
+                    .graphemes(true)
+                    .count() as u32
+                        + 1; // to account for the ending "
+
+                    self.advance_byte();
+                    self.column = column + 1;
+
+                    Some(Ok(Token::new(
+                        TokenKind::VerbatimString,
+                        value,
+                        (line_start, column_start),
+                        (self.line, column),
+                    )))
+                } else {
+                    let value = String::from_utf8_lossy(
+                        self.source.get(index_start..self.index).unwrap_or(&[]),
+                    )
+                    .into_owned();
+                    let columns = value.graphemes(true).count() as u32;
+
+                    self.advance_byte();
+                    //                        @"..."
+                    // column_start points at ^, we add two to account for the " pair,
+                    // then advance by however many graphemes there are to the right,
+                    // then add one because of advance_byte()
+                    self.column = column_start + columns + 3;
+
+                    Some(Ok(Token::new(
+                        TokenKind::VerbatimString,
+                        value,
+                        (self.line, column_start),
+                        // self.column points one column too far to the right
+                        (self.line, self.column - 1),
+                    )))
+                }
+            }
+
+            _ => unreachable!(),
+        }
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -843,6 +989,8 @@ pub enum LexerErrorKind {
     EmptyChar,
     /// A `char`-like literal was unclosed.
     UnclosedChar,
+    /// A verbatim string was unclosed.
+    UnclosedVerbatimString,
     /// A string was unclosed.
     UnclosedString,
     /// An unexpected symbol was encountered outside of comments or strings.
@@ -1148,6 +1296,82 @@ mod tests {
         assert_eq!(
             token_from_withnext("\"xöz"),
             error_withnext(UnclosedString, 1, 4),
+        );
+    }
+
+    #[test]
+    fn verbatim_string_empty() {
+        assert_eq!(
+            token_from_withnext(r#"@"""#),
+            token_withnext(VerbatimString, "", (1, 1), (1, 3)),
+        );
+    }
+
+    #[test]
+    fn verbatim_string() {
+        assert_eq!(
+            token_from_withnext(r#"@"ändern""#),
+            token_withnext(VerbatimString, "ändern", (1, 1), (1, 9)),
+        );
+    }
+
+    #[test]
+    fn verbatim_string_newline() {
+        assert_eq!(
+            token_from_withnext(
+                r#"@"viele
+Möglichkeiten""#
+            ),
+            token_withnext(VerbatimString, "viele\nMöglichkeiten", (1, 1), (2, 14)),
+        );
+        assert_eq!(
+            token_from_withnext(
+                r#"@"viele
+""#
+            ),
+            token_withnext(VerbatimString, "viele\n", (1, 1), (2, 1)),
+        );
+    }
+
+    #[test]
+    fn verbatim_string_escapes() {
+        assert_eq!(
+            token_from_withnext(r#"@"\r\n""#),
+            token_withnext(VerbatimString, "\\r\\n", (1, 1), (1, 7))
+        );
+    }
+
+    #[test]
+    fn verbatim_string_quotes() {
+        assert_eq!(
+            token_from_withnext(r#"@"""hello""""#),
+            token_withnext(VerbatimString, r#"""hello"""#, (1, 1), (1, 12))
+        );
+    }
+
+    #[test]
+    fn verbatim_string_unclosed() {
+        assert_eq!(
+            token_from_withnext(r#"@""#),
+            error_withnext(UnclosedVerbatimString, 1, 2)
+        );
+        assert_eq!(
+            token_from_withnext(r#"@"Möglichkeit"#),
+            error_withnext(UnclosedVerbatimString, 1, 13)
+        );
+        assert_eq!(
+            token_from_withnext(
+                r#"@"
+"#
+            ),
+            error_withnext(UnclosedVerbatimString, 2, 1)
+        );
+        assert_eq!(
+            token_from_withnext(
+                r#"@"
+Möglichkeit"#
+            ),
+            error_withnext(UnclosedVerbatimString, 2, 11)
         );
     }
 }
