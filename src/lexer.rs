@@ -162,6 +162,8 @@ pub enum TokenKind {
     Ins,
     /// The `instanceof` keyword.
     InstanceOf,
+    /// The `@` symbol signaling a lambda expression.
+    Lambda,
     /// The `<=` operator.
     Le,
     /// The `__LINE__` keyword.
@@ -797,7 +799,7 @@ impl Lexer {
         let column_start = self.column;
         match self.advance_char() {
             QUOTATION => self.verbatim_string(self.line, column_start),
-            _ => todo!(),
+            _ => Some(Ok(self.token_on_line(TokenKind::Lambda, column_start))),
         }
     }
 
@@ -1372,6 +1374,14 @@ Möglichkeiten""#
 Möglichkeit"#
             ),
             error_withnext(UnclosedVerbatimString, 2, 11)
+        );
+    }
+
+    #[test]
+    fn lambda() {
+        assert_eq!(
+            token_from_withnext("@"),
+            token_withnext(Lambda, "", (1, 1), (1, 1)),
         );
     }
 }
