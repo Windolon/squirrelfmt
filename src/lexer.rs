@@ -1032,28 +1032,74 @@ mod tests {
         Some(Ok(Token::new(kind, value.to_string(), start, end)))
     }
 
-    fn token_withnext(
-        kind: TokenKind,
-        value: &str,
-        start: (u32, u32),
-        end: (u32, u32),
-    ) -> Vec<Option<Result<Token, LexerError>>> {
-        vec![token(kind, value, start, end), token(Eof, "", end, end)]
+    fn error(kind: LexerErrorKind, line: u32, column: u32) -> Option<Result<Token, LexerError>> {
+        Some(Err(LexerError::new(kind, line, column)))
     }
 
-    fn error_withnext(
-        kind: LexerErrorKind,
-        line: u32,
-        column: u32,
-    ) -> Vec<Option<Result<Token, LexerError>>> {
-        vec![Some(Err(LexerError::new(kind, line, column))), None]
+    // Ascertain that, either:
+    //
+    // - An error has the correct kind and position,
+    //   and that the token stream ends thereafter; or
+    // - A token has the correct kind, value, starting and ending positions,
+    //   and that it properly advances to the next character;
+    //
+    // from the input source string.
+    macro_rules! assert_token {
+        (
+            $source: expr,
+            $kind: expr,
+            $line: expr,
+            $column: expr
+        ) => {{
+            let mut lexer = Lexer::new($source);
+            let vec_source = vec![lexer.next_token(), lexer.next_token()];
+            let vec_compare = vec![error($kind, $line, $column), None];
+
+            assert_eq!(vec_source, vec_compare);
+        }};
+        (
+            $source: expr,
+            $kind: expr,
+            $value: expr,
+            $start: expr,
+            $end: expr
+        ) => {{
+            let mut lexer = Lexer::new($source);
+            let vec_source = vec![lexer.next_token(), lexer.next_token()];
+            let vec_compare = vec![
+                token($kind, $value, $start, $end),
+                token(Eof, "", $end, $end),
+            ];
+
+            assert_eq!(vec_source, vec_compare);
+        }};
     }
 
-    fn token_from_withnext(source: &str) -> Vec<Option<Result<Token, LexerError>>> {
-        let mut lexer = Lexer::new(source);
-        let first_tok = lexer.next_token();
-        vec![first_tok, lexer.next_token()]
-    }
+    // // Ascertain that a correct stream of tokens (excluding the Eof but including
+    // // any LexerErrors) is produced from a given source string.
+    // macro_rules! assert_stream_eq {
+    //     (
+    //         $source: expr,
+    //         $(
+    //             $token: expr
+    //         ),+
+    //     ) => {{
+    //         let mut lexer = Lexer::new($source);
+    //         let mut vec_source = Vec::new();
+    //
+    //         let mut token = lexer.next_token();
+    //         while token.is_some() {
+    //             vec_source.push(token);
+    //             token = lexer.next_token();
+    //         }
+    //         match vec_source.pop() {
+    //             Some(token) =>
+    //             None => unreachable!(),
+    //         }
+    //
+    //         assert_eq!(vec_source, vec![$($token,)+]);
+    //     }};
+    // }
 
     #[test]
     fn eof_empty_none() {
@@ -1073,315 +1119,255 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn keywords() {
-        assert_eq!(token_from_withnext("if"), token_withnext(If, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("in"), token_withnext(In, "", (1, 1), (1, 2)));
+        assert_token!("if", If, "", (1, 1), (1, 2));
+        assert_token!("in", In, "", (1, 1), (1, 2));
 
-        assert_eq!(token_from_withnext("for"), token_withnext(For, "", (1, 1), (1, 3)));
-        assert_eq!(token_from_withnext("try"), token_withnext(Try, "", (1, 1), (1, 3)));
+        assert_token!("for", For, "", (1, 1), (1, 3));
+        assert_token!("try", Try, "", (1, 1), (1, 3));
 
-        assert_eq!(token_from_withnext("base"), token_withnext(Base, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("case"), token_withnext(Case, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("else"), token_withnext(Else, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("enum"), token_withnext(Enum, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("null"), token_withnext(Null, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("this"), token_withnext(This, "", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("true"), token_withnext(True, "", (1, 1), (1, 4)));
+        assert_token!("base", Base, "", (1, 1), (1, 4));
+        assert_token!("case", Case, "", (1, 1), (1, 4));
+        assert_token!("else", Else, "", (1, 1), (1, 4));
+        assert_token!("enum", Enum, "", (1, 1), (1, 4));
+        assert_token!("null", Null, "", (1, 1), (1, 4));
+        assert_token!("this", This, "", (1, 1), (1, 4));
+        assert_token!("true", True, "", (1, 1), (1, 4));
 
-        assert_eq!(token_from_withnext("break"), token_withnext(Break, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("catch"), token_withnext(Catch, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("class"), token_withnext(Class, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("clone"), token_withnext(Clone, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("const"), token_withnext(Const, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("false"), token_withnext(False, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("local"), token_withnext(Local, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("throw"), token_withnext(Throw, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("while"), token_withnext(While, "", (1, 1), (1, 5)));
-        assert_eq!(token_from_withnext("yield"), token_withnext(Yield, "", (1, 1), (1, 5)));
+        assert_token!("break", Break, "", (1, 1), (1, 5));
+        assert_token!("catch", Catch, "", (1, 1), (1, 5));
+        assert_token!("class", Class, "", (1, 1), (1, 5));
+        assert_token!("clone", Clone, "", (1, 1), (1, 5));
+        assert_token!("const", Const, "", (1, 1), (1, 5));
+        assert_token!("false", False, "", (1, 1), (1, 5));
+        assert_token!("local", Local, "", (1, 1), (1, 5));
+        assert_token!("throw", Throw, "", (1, 1), (1, 5));
+        assert_token!("while", While, "", (1, 1), (1, 5));
+        assert_token!("yield", Yield, "", (1, 1), (1, 5));
 
-        assert_eq!(token_from_withnext("delete"), token_withnext(Delete, "", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("resume"), token_withnext(Resume, "", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("return"), token_withnext(Return, "", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("static"), token_withnext(Static, "", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("switch"), token_withnext(Switch, "", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("typeof"), token_withnext(Typeof, "", (1, 1), (1, 6)));
+        assert_token!("delete", Delete, "", (1, 1), (1, 6));
+        assert_token!("resume", Resume, "", (1, 1), (1, 6));
+        assert_token!("return", Return, "", (1, 1), (1, 6));
+        assert_token!("static", Static, "", (1, 1), (1, 6));
+        assert_token!("switch", Switch, "", (1, 1), (1, 6));
+        assert_token!("typeof", Typeof, "", (1, 1), (1, 6));
 
-        assert_eq!(token_from_withnext("default"), token_withnext(Default, "", (1, 1), (1, 7)));
-        assert_eq!(token_from_withnext("extends"), token_withnext(Extends, "", (1, 1), (1, 7)));
-        assert_eq!(token_from_withnext("foreach"), token_withnext(Foreach, "", (1, 1), (1, 7)));
-        assert_eq!(token_from_withnext("rawcall"), token_withnext(Rawcall, "", (1, 1), (1, 7)));
+        assert_token!("default", Default, "", (1, 1), (1, 7));
+        assert_token!("extends", Extends, "", (1, 1), (1, 7));
+        assert_token!("foreach", Foreach, "", (1, 1), (1, 7));
+        assert_token!("rawcall", Rawcall, "", (1, 1), (1, 7));
 
-        assert_eq!(token_from_withnext("__FILE__"), token_withnext(File, "", (1, 1), (1, 8)));
-        assert_eq!(token_from_withnext("__LINE__"), token_withnext(Line, "", (1, 1), (1, 8)));
-        assert_eq!(token_from_withnext("continue"), token_withnext(Continue, "", (1, 1), (1, 8)));
-        assert_eq!(token_from_withnext("function"), token_withnext(Function, "", (1, 1), (1, 8)));
+        assert_token!("__FILE__", File, "", (1, 1), (1, 8));
+        assert_token!("__LINE__", Line, "", (1, 1), (1, 8));
+        assert_token!("continue", Continue, "", (1, 1), (1, 8));
+        assert_token!("function", Function, "", (1, 1), (1, 8));
 
-        assert_eq!(token_from_withnext("instanceof"), token_withnext(InstanceOf, "", (1, 1), (1, 10)));
-        assert_eq!(token_from_withnext("constructor"), token_withnext(Constructor, "", (1, 1), (1, 11)));
+        assert_token!("instanceof", InstanceOf, "", (1, 1), (1, 10));
+        assert_token!("constructor", Constructor, "", (1, 1), (1, 11));
     }
 
     #[test]
     #[rustfmt::skip]
     fn identifiers() {
         // unused variable
-        assert_eq!(token_from_withnext("_"), token_withnext(Identifier, "_", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("f"), token_withnext(Identifier, "f", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("F"), token_withnext(Identifier, "F", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("f1"), token_withnext(Identifier, "f1", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("_1"), token_withnext(Identifier, "_1", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("__"), token_withnext(Identifier, "__", (1, 1), (1, 2)));
+        assert_token!("_", Identifier, "_", (1, 1), (1, 1));
+        assert_token!("f", Identifier, "f", (1, 1), (1, 1));
+        assert_token!("F", Identifier, "F", (1, 1), (1, 1));
+        assert_token!("f1", Identifier, "f1", (1, 1), (1, 2));
+        assert_token!("_1", Identifier, "_1", (1, 1), (1, 2));
+        assert_token!("__", Identifier, "__", (1, 1), (1, 2));
         // general variable
-        assert_eq!(token_from_withnext("foo"), token_withnext(Identifier, "foo", (1, 1), (1, 3)));
-        assert_eq!(token_from_withnext("__fo"), token_withnext(Identifier, "__fo", (1, 1), (1, 4)));
-        assert_eq!(token_from_withnext("__2fo"), token_withnext(Identifier, "__2fo", (1, 1), (1, 5)));
+        assert_token!("foo", Identifier, "foo", (1, 1), (1, 3));
+        assert_token!("__fo", Identifier, "__fo", (1, 1), (1, 4));
+        assert_token!("__2fo", Identifier, "__2fo", (1, 1), (1, 5));
         // PascalCase
-        assert_eq!(token_from_withnext("FooBar"), token_withnext(Identifier, "FooBar", (1, 1), (1, 6)));
-        assert_eq!(token_from_withnext("fOo2BaR"), token_withnext(Identifier, "fOo2BaR", (1, 1), (1, 7)));
+        assert_token!("FooBar", Identifier, "FooBar", (1, 1), (1, 6));
+        assert_token!("fOo2BaR", Identifier, "fOo2BaR", (1, 1), (1, 7));
         // camelCase
-        assert_eq!(token_from_withnext("fooBarBa"), token_withnext(Identifier, "fooBarBa", (1, 1), (1, 8)));
+        assert_token!("fooBarBa", Identifier, "fooBarBa", (1, 1), (1, 8));
         // SCREAMING_SNAKE_CASE
-        assert_eq!(token_from_withnext("HALF_LIFE"), token_withnext(Identifier, "HALF_LIFE", (1, 1), (1, 9)));
+        assert_token!("HALF_LIFE", Identifier, "HALF_LIFE", (1, 1), (1, 9));
         // snake_case
-        assert_eq!(token_from_withnext("portal_two"), token_withnext(Identifier, "portal_two", (1, 1), (1, 10)));
+        assert_token!("portal_two", Identifier, "portal_two", (1, 1), (1, 10));
         // a general script function beginning with "_"
-        assert_eq!(token_from_withnext("__DumpScope"), token_withnext(Identifier, "__DumpScope", (1, 1), (1, 11)));
-        assert_eq!(token_from_withnext("__0foobarbaz"), token_withnext(Identifier, "__0foobarbaz", (1, 1), (1, 12)));
-        assert_eq!(token_from_withnext("___0123456789"), token_withnext(Identifier, "___0123456789", (1, 1), (1, 13)));
+        assert_token!("__DumpScope", Identifier, "__DumpScope", (1, 1), (1, 11));
+        assert_token!("__0foobarbaz", Identifier, "__0foobarbaz", (1, 1), (1, 12));
+        assert_token!("___0123456789", Identifier, "___0123456789", (1, 1), (1, 13));
     }
 
     #[test]
-    #[rustfmt::skip]
     fn operators() {
-        assert_eq!(token_from_withnext("!"), token_withnext(Not, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("!="), token_withnext(Neq, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("%"), token_withnext(Mod, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("%="), token_withnext(ModAssign, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("&"), token_withnext(BitAnd, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("&&"), token_withnext(And, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("*"), token_withnext(Mult, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("*="), token_withnext(MultAssign, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("+"), token_withnext(Add, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("++"), token_withnext(Increment, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("+="), token_withnext(AddAssign, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("-"), token_withnext(Sub, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("--"), token_withnext(Decrement, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("-="), token_withnext(SubAssign, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("/"), token_withnext(Div, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("/="), token_withnext(DivAssign, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("<"), token_withnext(Lt, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("<-"), token_withnext(Ins, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("<<"), token_withnext(BitLeft, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("<="), token_withnext(Le, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("<=>"), token_withnext(Spaceship, "", (1, 1), (1, 3)));
-        assert_eq!(token_from_withnext("="), token_withnext(Assign, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("=="), token_withnext(Eq, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext(">"), token_withnext(Gt, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext(">="), token_withnext(Ge, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext(">>"), token_withnext(BitRight, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext(">>>"), token_withnext(UnsignedRight, "", (1, 1), (1, 3)));
-        assert_eq!(token_from_withnext("^"), token_withnext(BitXor, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("|"), token_withnext(BitOr, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("||"), token_withnext(Or, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext("~"), token_withnext(BitNot, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext(","), token_withnext(Comma, "", (1, 1), (1, 1)));
+        assert_token!("+", Add, "", (1, 1), (1, 1));
+        assert_token!("+=", AddAssign, "", (1, 1), (1, 2));
+        assert_token!("&&", And, "", (1, 1), (1, 2));
+        assert_token!("=", Assign, "", (1, 1), (1, 1));
+        assert_token!("&", BitAnd, "", (1, 1), (1, 1));
+        assert_token!("<<", BitLeft, "", (1, 1), (1, 2));
+        assert_token!("~", BitNot, "", (1, 1), (1, 1));
+        assert_token!("|", BitOr, "", (1, 1), (1, 1));
+        assert_token!(">>", BitRight, "", (1, 1), (1, 2));
+        assert_token!("^", BitXor, "", (1, 1), (1, 1));
+        assert_token!(",", Comma, "", (1, 1), (1, 1));
+        assert_token!("--", Decrement, "", (1, 1), (1, 2));
+        assert_token!("/", Div, "", (1, 1), (1, 1));
+        assert_token!("/=", DivAssign, "", (1, 1), (1, 2));
+        assert_token!("==", Eq, "", (1, 1), (1, 2));
+        assert_token!(">=", Ge, "", (1, 1), (1, 2));
+        assert_token!(">", Gt, "", (1, 1), (1, 1));
+        assert_token!("++", Increment, "", (1, 1), (1, 2));
+        assert_token!("<-", Ins, "", (1, 1), (1, 2));
+        assert_token!("<=", Le, "", (1, 1), (1, 2));
+        assert_token!("<", Lt, "", (1, 1), (1, 1));
+        assert_token!("%", Mod, "", (1, 1), (1, 1));
+        assert_token!("%=", ModAssign, "", (1, 1), (1, 2));
+        assert_token!("*", Mult, "", (1, 1), (1, 1));
+        assert_token!("*=", MultAssign, "", (1, 1), (1, 2));
+        assert_token!("!=", Neq, "", (1, 1), (1, 2));
+        assert_token!("!", Not, "", (1, 1), (1, 1));
+        assert_token!("||", Or, "", (1, 1), (1, 2));
+        assert_token!("<=>", Spaceship, "", (1, 1), (1, 3));
+        assert_token!("-", Sub, "", (1, 1), (1, 1));
+        assert_token!("-=", SubAssign, "", (1, 1), (1, 2));
+        assert_token!(">>>", UnsignedRight, "", (1, 1), (1, 3));
     }
 
     #[test]
-    #[rustfmt::skip]
     fn misc_tokens() {
-        assert_eq!(token_from_withnext("("), token_withnext(ParenOpen, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext(")"), token_withnext(ParenClose, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("["), token_withnext(SquareOpen, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("]"), token_withnext(SquareClose, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("{"), token_withnext(BraceOpen, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("}"), token_withnext(BraceClose, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("."), token_withnext(Dot, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("..."), token_withnext(Ellipsis, "", (1, 1), (1, 3)));
-        assert_eq!(token_from_withnext(":"), token_withnext(Colon, "", (1, 1), (1, 1)));
-        assert_eq!(token_from_withnext("::"), token_withnext(ScopeRes, "", (1, 1), (1, 2)));
-        assert_eq!(token_from_withnext(";"), token_withnext(Semicolon, "", (1, 1), (1, 1)));
+        assert_token!("}", BraceClose, "", (1, 1), (1, 1));
+        assert_token!("{", BraceOpen, "", (1, 1), (1, 1));
+        assert_token!(":", Colon, "", (1, 1), (1, 1));
+        assert_token!(".", Dot, "", (1, 1), (1, 1));
+        assert_token!("...", Ellipsis, "", (1, 1), (1, 3));
+        assert_token!(")", ParenClose, "", (1, 1), (1, 1));
+        assert_token!("(", ParenOpen, "", (1, 1), (1, 1));
+        assert_token!("::", ScopeRes, "", (1, 1), (1, 2));
+        assert_token!(";", Semicolon, "", (1, 1), (1, 1));
+        assert_token!("]", SquareClose, "", (1, 1), (1, 1));
+        assert_token!("[", SquareOpen, "", (1, 1), (1, 1));
     }
 
     #[test]
     fn unexpected_symbol() {
-        let mut lexer = Lexer::new("ändern");
-        assert_eq!(
-            lexer.next_token(),
-            Some(Err(LexerError::new(UnexpectedSymbol, 1, 1)))
-        );
-        assert_eq!(lexer.next_token(), None);
+        assert_token!("ändern", UnexpectedSymbol, 1, 1);
+        // TODO: what if these symbols occur elsewhere, such as
+        // `local möglich`?
     }
 
     #[test]
     fn char() {
-        assert_eq!(
-            token_from_withnext("'f'"),
-            token_withnext(Char, "f", (1, 1), (1, 3))
-        );
+        assert_token!("'f'", Char, "f", (1, 1), (1, 3));
     }
 
     #[test]
     fn char_oob() {
-        assert_eq!(
-            token_from_withnext("'Ü'"),
-            error_withnext(CharOutOfBounds, 1, 2)
-        );
+        assert_token!("'Ü'", CharOutOfBounds, 1, 2);
     }
 
     #[test]
     fn char_too_long() {
-        assert_eq!(
-            token_from_withnext("'xd'"),
-            error_withnext(CharTooLong, 1, 3)
-        );
+        assert_token!("'xd'", CharTooLong, 1, 3);
     }
 
     #[test]
     fn char_empty() {
-        assert_eq!(token_from_withnext("''"), error_withnext(EmptyChar, 1, 2));
+        assert_token!("''", EmptyChar, 1, 2);
     }
 
     #[test]
     fn char_unclosed() {
-        assert_eq!(
-            token_from_withnext("'\n"),
-            error_withnext(UnclosedChar, 1, 1)
-        );
-        assert_eq!(
-            token_from_withnext("'f\n"),
-            error_withnext(UnclosedChar, 1, 2)
-        );
-        assert_eq!(token_from_withnext("'"), error_withnext(UnclosedChar, 1, 1));
-        assert_eq!(
-            token_from_withnext("'f"),
-            error_withnext(UnclosedChar, 1, 2)
-        );
+        assert_token!("'\n", UnclosedChar, 1, 1);
+        assert_token!("'f\n", UnclosedChar, 1, 2);
+        assert_token!("'", UnclosedChar, 1, 1);
+        assert_token!("'f", UnclosedChar, 1, 2);
     }
 
     #[test]
     fn string_empty() {
-        assert_eq!(
-            token_from_withnext("\"\""),
-            token_withnext(String, "", (1, 1), (1, 2)),
-        );
+        assert_token!("\"\"", String, "", (1, 1), (1, 2));
     }
 
     #[test]
     fn string() {
-        assert_eq!(
-            token_from_withnext("\" _0aA!$\""),
-            token_withnext(String, " _0aA!$", (1, 1), (1, 9)),
-        );
-    }
-
-    #[test]
-    fn string_unicode() {
-        assert_eq!(
-            token_from_withnext("\"█░█░█░\""),
-            token_withnext(String, "█░█░█░", (1, 1), (1, 8)),
-        );
+        assert_token!("\" _0aZ!$█░\"", String, " _0aZ!$█░", (1, 1), (1, 11));
     }
 
     #[test]
     fn string_unclosed() {
-        assert_eq!(
-            token_from_withnext("\"\n"),
-            error_withnext(UnclosedString, 1, 1),
-        );
-        assert_eq!(
-            token_from_withnext("\""),
-            error_withnext(UnclosedString, 1, 1),
-        );
-        assert_eq!(
-            token_from_withnext("\"a€c\n"),
-            error_withnext(UnclosedString, 1, 4),
-        );
-        assert_eq!(
-            token_from_withnext("\"xöz"),
-            error_withnext(UnclosedString, 1, 4),
-        );
+        assert_token!("\"\n", UnclosedString, 1, 1);
+        assert_token!("\"a█\n", UnclosedString, 1, 3);
+        assert_token!("\"", UnclosedString, 1, 1);
+        assert_token!("\"a█", UnclosedString, 1, 3);
     }
 
     #[test]
     fn verbatim_string_empty() {
-        assert_eq!(
-            token_from_withnext(r#"@"""#),
-            token_withnext(VerbatimString, "", (1, 1), (1, 3)),
-        );
+        assert_token!("@\"\"", VerbatimString, "", (1, 1), (1, 3));
     }
 
     #[test]
     fn verbatim_string() {
-        assert_eq!(
-            token_from_withnext(r#"@"ändern""#),
-            token_withnext(VerbatimString, "ändern", (1, 1), (1, 9)),
+        assert_token!(
+            "@\" _0aZ!$█░\"",
+            VerbatimString,
+            " _0aZ!$█░",
+            (1, 1),
+            (1, 12)
         );
-    }
-
-    #[test]
-    fn verbatim_string_newline() {
-        assert_eq!(
-            token_from_withnext(
-                r#"@"viele
-Möglichkeiten""#
-            ),
-            token_withnext(VerbatimString, "viele\nMöglichkeiten", (1, 1), (2, 14)),
+        assert_token!(
+            r#"@" _0aZ!$█░
+ _0aZ!$█░""#,
+            VerbatimString,
+            " _0aZ!$█░\n _0aZ!$█░",
+            (1, 1),
+            (2, 10)
         );
-        assert_eq!(
-            token_from_withnext(
-                r#"@"viele
-""#
-            ),
-            token_withnext(VerbatimString, "viele\n", (1, 1), (2, 1)),
+        assert_token!(
+            r#"@" _0aZ!$█░
+""#,
+            VerbatimString,
+            " _0aZ!$█░\n",
+            (1, 1),
+            (2, 1)
         );
     }
 
     #[test]
     fn verbatim_string_escapes() {
-        assert_eq!(
-            token_from_withnext(r#"@"\r\n""#),
-            token_withnext(VerbatimString, "\\r\\n", (1, 1), (1, 7))
-        );
+        assert_token!(r#"@"\r\n""#, VerbatimString, "\\r\\n", (1, 1), (1, 7));
     }
 
     #[test]
     fn verbatim_string_quotes() {
-        assert_eq!(
-            token_from_withnext(r#"@"""hello""""#),
-            token_withnext(VerbatimString, r#"""hello"""#, (1, 1), (1, 12))
+        assert_token!(
+            r#"@"""hello""""#,
+            VerbatimString,
+            r#"""hello"""#,
+            (1, 1),
+            (1, 12)
         );
     }
 
     #[test]
     fn verbatim_string_unclosed() {
-        assert_eq!(
-            token_from_withnext(r#"@""#),
-            error_withnext(UnclosedVerbatimString, 1, 2)
+        assert_token!("@\"", UnclosedVerbatimString, 1, 2);
+        assert_token!("@\" _0aZ!$█░", UnclosedVerbatimString, 1, 11);
+        assert_token!(
+            r#"@"
+"#,
+            UnclosedVerbatimString,
+            2,
+            1
         );
-        assert_eq!(
-            token_from_withnext(r#"@"Möglichkeit"#),
-            error_withnext(UnclosedVerbatimString, 1, 13)
-        );
-        assert_eq!(
-            token_from_withnext(
-                r#"@"
-"#
-            ),
-            error_withnext(UnclosedVerbatimString, 2, 1)
-        );
-        assert_eq!(
-            token_from_withnext(
-                r#"@"
-Möglichkeit"#
-            ),
-            error_withnext(UnclosedVerbatimString, 2, 11)
+        assert_token!(
+            r#"@"
+ _0aZ!$█░"#,
+            UnclosedVerbatimString,
+            2,
+            9
         );
     }
 
     #[test]
     fn lambda() {
-        assert_eq!(
-            token_from_withnext("@"),
-            token_withnext(Lambda, "", (1, 1), (1, 1)),
-        );
+        assert_token!("@", Lambda, "", (1, 1), (1, 1));
     }
 }
