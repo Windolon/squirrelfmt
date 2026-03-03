@@ -46,12 +46,12 @@ pub struct Position {
 }
 
 impl Position {
-    /// Returns the line number of this position.
+    /// Returns the line number of the position.
     pub fn line(&self) -> u32 {
         self.line
     }
 
-    /// Returns the column number of this position.
+    /// Returns the column number of the position.
     pub fn column(&self) -> u32 {
         self.column
     }
@@ -239,8 +239,8 @@ pub enum TokenKind {
     Yield,
 }
 
-/// A token consisting of its [`TokenKind`], value if any, and its starting and ending position in
-/// source code.
+/// A token consisting of its [`TokenKind`], value if any, and its starting and ending [`Position`]
+/// in source code.
 #[derive(Debug, PartialEq)]
 pub struct Token {
     kind: TokenKind,
@@ -1028,7 +1028,7 @@ pub enum LexerErrorKind {
 pub struct LexerError {
     /// The kind of error encountered.
     pub kind: LexerErrorKind,
-    /// The position of this error in source code.
+    /// The position of the error in source code.
     pub position: Position,
 }
 
