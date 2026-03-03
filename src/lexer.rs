@@ -297,7 +297,7 @@ impl Lexer {
     /// Creates a new Lexer from the input source string.
     pub fn new(source: &str) -> Self {
         Self {
-            source: source.bytes().collect(),
+            source: source.as_bytes().to_owned(),
             index: 0,
             line: 1,
             column: 1,
