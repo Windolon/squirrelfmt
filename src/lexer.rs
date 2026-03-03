@@ -39,7 +39,7 @@ const ZERO: u8 = b'0';
 
 /// Represents a symbol's exact location in source code.
 // TODO: How does unicode chars affect this counter?
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Position {
     line: u32,
     column: u32,
@@ -250,6 +250,30 @@ pub struct Token {
 }
 
 impl Token {
+    /// Returns the kind of the token.
+    pub fn kind(&self) -> &TokenKind {
+        &self.kind
+    }
+
+    /// Returns the value of the token. Tokens may not always contain a value. In that case, an
+    /// empty string slice is returned.
+    ///
+    /// A token tries to represent the source code as close as possible. If parsing is done early,
+    /// precision may be lost. Therefore, all tokens' values are stored as a string.
+    pub fn value(&self) -> &str {
+        self.value.as_str()
+    }
+
+    /// Returns the starting position of the token.
+    pub fn start(&self) -> Position {
+        self.start_position.clone()
+    }
+
+    /// Returns the ending position of the token.
+    pub fn end(&self) -> Position {
+        self.end_position.clone()
+    }
+
     fn new(kind: TokenKind, value: String, start: (u32, u32), end: (u32, u32)) -> Self {
         Self {
             kind,
