@@ -15,6 +15,7 @@ const DOT: u8 = b'.';
 const EQUAL: u8 = b'=';
 const EXCLAMATION: u8 = b'!';
 const GREATER_THAN: u8 = b'>';
+const HASH: u8 = b'#';
 const LESS_THAN: u8 = b'<';
 const LOWER_A: u8 = b'a';
 const LOWER_Z: u8 = b'z';
@@ -96,6 +97,8 @@ pub enum TokenKind {
     Case,
     /// The `catch` keyword.
     Catch,
+    /// A C-styled comment, e.g. `// comment`.
+    CComment,
     /// A `char`-like literal, e.g. `'a'`.
     Char,
     /// The `class` keyword.
@@ -150,6 +153,8 @@ pub enum TokenKind {
     Ge,
     /// The `>` operator.
     Gt,
+    /// A shell script-styled comment, e.g. `# comment`.
+    ShellComment,
     /// An identifier.
     Identifier,
     /// The `if` keyword.
@@ -333,6 +338,7 @@ impl Lexer {
             APOSTROPHE => self.char(),
             QUOTATION => self.string(),
             AT => self.at(),
+            HASH => self.comment(self.column),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -556,7 +562,7 @@ impl Lexer {
                 Some(Ok(self.token_on_line(TokenKind::DivAssign, column_start)))
             }
             // Comment.
-            SLASH => todo!(),
+            SLASH => self.comment(column_start),
             _ => Some(Ok(self.token_on_line(TokenKind::Div, column_start))),
         }
     }
@@ -958,6 +964,43 @@ impl Lexer {
             }
 
             _ => unreachable!(),
+        }
+    }
+
+    fn comment(&mut self, column_start: u32) -> Option<Result<Token, LexerError>> {
+        //                     //    #
+        // self.index points at ^ or ^
+        let is_shell_comment = match self.current_byte() {
+            HASH => true,
+            SLASH => false,
+            _ => unreachable!(),
+        };
+        let index_start = self.index + 1;
+
+        loop {
+            match self.advance_byte() {
+                NEWLINE | NULL => break,
+                _ => continue,
+            }
+        }
+
+        let value =
+            str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[])).unwrap();
+        let columns = value.graphemes(true).count() as u32;
+
+        self.column += columns + 1;
+        if is_shell_comment {
+            Some(Ok(self.token_on_line_with_value(
+                TokenKind::ShellComment,
+                value,
+                column_start,
+            )))
+        } else {
+            Some(Ok(self.token_on_line_with_value(
+                TokenKind::CComment,
+                value,
+                column_start,
+            )))
         }
     }
 
@@ -1393,5 +1436,17 @@ mod tests {
     #[test]
     fn lambda() {
         assert_token!("@", Lambda, "", (1, 1), (1, 1));
+    }
+
+    #[test]
+    fn comment_empty() {
+        assert_token!("//", CComment, "", (1, 1), (1, 2));
+        assert_token!("#", ShellComment, "", (1, 1), (1, 1));
+    }
+
+    #[test]
+    fn comment() {
+        assert_token!("// _0aZ!$█░ ", CComment, " _0aZ!$█░ ", (1, 1), (1, 12));
+        assert_token!("# _0aZ!$█░ ", ShellComment, " _0aZ!$█░ ", (1, 1), (1, 11));
     }
 }
