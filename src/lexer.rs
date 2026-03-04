@@ -1311,7 +1311,7 @@ mod tests {
 
     #[test]
     fn string() {
-        assert_token!("\" _0aZ!$█░\"", String, " _0aZ!$█░", (1, 1), (1, 11));
+        assert_token!("\" _0aZ!$█░ \"", String, " _0aZ!$█░ ", (1, 1), (1, 12));
     }
 
     #[test]
@@ -1330,25 +1330,25 @@ mod tests {
     #[test]
     fn verbatim_string() {
         assert_token!(
-            "@\" _0aZ!$█░\"",
+            "@\" _0aZ!$█░ \"",
             VerbatimString,
-            " _0aZ!$█░",
+            " _0aZ!$█░ ",
             (1, 1),
-            (1, 12)
+            (1, 13)
         );
         assert_token!(
-            r#"@" _0aZ!$█░
- _0aZ!$█░""#,
+            r#"@" _0aZ!$█░ 
+ _0aZ!$█░ ""#,
             VerbatimString,
-            " _0aZ!$█░\n _0aZ!$█░",
+            " _0aZ!$█░ \n _0aZ!$█░ ",
             (1, 1),
-            (2, 10)
+            (2, 11)
         );
         assert_token!(
-            r#"@" _0aZ!$█░
+            r#"@" _0aZ!$█░ 
 ""#,
             VerbatimString,
-            " _0aZ!$█░\n",
+            " _0aZ!$█░ \n",
             (1, 1),
             (2, 1)
         );
@@ -1373,7 +1373,7 @@ mod tests {
     #[test]
     fn verbatim_string_unclosed() {
         assert_token!("@\"", UnclosedVerbatimString, 1, 2);
-        assert_token!("@\" _0aZ!$█░", UnclosedVerbatimString, 1, 11);
+        assert_token!("@\" _0aZ!$█░ ", UnclosedVerbatimString, 1, 12);
         assert_token!(
             r#"@"
 "#,
@@ -1383,10 +1383,10 @@ mod tests {
         );
         assert_token!(
             r#"@"
- _0aZ!$█░"#,
+ _0aZ!$█░ "#,
             UnclosedVerbatimString,
             2,
-            9
+            10
         );
     }
 
