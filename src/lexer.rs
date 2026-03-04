@@ -185,6 +185,8 @@ pub enum TokenKind {
     Mult,
     /// The `*=` operator.
     MultAssign,
+    /// A multi-line comment.
+    MultiLineComment,
     /// The `!=` operator.
     Neq,
     /// The `!` operator.
@@ -563,6 +565,7 @@ impl Lexer {
             }
             // Comment.
             SLASH => self.comment(column_start),
+            ASTERISK => self.multi_line_comment(self.line, column_start),
             _ => Some(Ok(self.token_on_line(TokenKind::Div, column_start))),
         }
     }
@@ -1004,6 +1007,133 @@ impl Lexer {
         }
     }
 
+    // TODO: This method's logic is very similar to verbatim_string,
+    // find a way to DRY this?
+    fn multi_line_comment(
+        &mut self,
+        line_start: u32,
+        column_start: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        //                     /*
+        // self.index points at ^
+        let index_start = self.index + 1;
+        let mut last_newline_index = 0;
+
+        loop {
+            match self.advance_byte() {
+                NULL => break,
+                NEWLINE => {
+                    self.line += 1;
+                    // A newline counts as one grapheme, we don't want to include that
+                    last_newline_index = self.index + 1;
+                    continue;
+                }
+                ASTERISK => {
+                    match self.peek_byte() {
+                        // comment ends
+                        SLASH => {
+                            self.advance_byte();
+                            break;
+                        }
+                        _ => continue,
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        // self.index points at NULL or SLASH
+        match self.current_byte() {
+            // unclosed
+            NULL => {
+                if self.line != line_start {
+                    let mut column = str::from_utf8(
+                        self.source
+                            .get(last_newline_index..self.index)
+                            .unwrap_or(&[]),
+                    )
+                    .unwrap()
+                    .graphemes(true)
+                    .count() as u32;
+
+                    if column == 0 {
+                        column = 1;
+                    }
+
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::UnclosedMultiLineComment,
+                        self.line,
+                        column,
+                    )))
+                } else {
+                    let columns =
+                        str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[]))
+                            .unwrap()
+                            .graphemes(true)
+                            .count() as u32;
+
+                    self.terminate();
+                    Some(Err(LexerError::new(
+                        LexerErrorKind::UnclosedMultiLineComment,
+                        self.line,
+                        column_start + columns + 1,
+                    )))
+                }
+            }
+            SLASH => {
+                if self.line != line_start {
+                    let value = String::from_utf8_lossy(
+                        //           ... */
+                        // Don't include ^
+                        self.source.get(index_start..self.index - 1).unwrap_or(&[]),
+                    )
+                    .into_owned();
+
+                    // This counter includes the "*" from above ...
+                    let column = str::from_utf8(
+                        self.source
+                            .get(last_newline_index..self.index)
+                            .unwrap_or(&[]),
+                    )
+                    .unwrap()
+                    .graphemes(true)
+                    .count() as u32
+                        + 1; // ... so we only add 1 to compensate for the "/"
+
+                    self.advance_byte();
+                    self.column = column + 1;
+
+                    Some(Ok(Token::new(
+                        TokenKind::MultiLineComment,
+                        value,
+                        (line_start, column_start),
+                        (self.line, column),
+                    )))
+                } else {
+                    let value = String::from_utf8_lossy(
+                        self.source.get(index_start..self.index - 1).unwrap_or(&[]),
+                    )
+                    .into_owned();
+                    let columns = value.graphemes(true).count() as u32;
+
+                    self.advance_byte();
+                    // Add 4 to account for "*", "*/" and advance_byte()
+                    self.column = column_start + columns + 4;
+
+                    Some(Ok(Token::new(
+                        TokenKind::MultiLineComment,
+                        value,
+                        (self.line, column_start),
+                        // self.column points one column too far to the right
+                        (self.line, self.column - 1),
+                    )))
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -1058,6 +1188,8 @@ pub enum LexerErrorKind {
     EmptyChar,
     /// A `char`-like literal was unclosed.
     UnclosedChar,
+    /// A multi-line comment was unclosed.
+    UnclosedMultiLineComment,
     /// A verbatim string was unclosed.
     UnclosedVerbatimString,
     /// A string was unclosed.
@@ -1448,5 +1580,55 @@ mod tests {
     fn comment() {
         assert_token!("// _0aZ!$█░ ", CComment, " _0aZ!$█░ ", (1, 1), (1, 12));
         assert_token!("# _0aZ!$█░ ", ShellComment, " _0aZ!$█░ ", (1, 1), (1, 11));
+    }
+
+    #[test]
+    fn multi_line_comment_empty() {
+        assert_token!("/**/", MultiLineComment, "", (1, 1), (1, 4));
+    }
+
+    #[test]
+    fn multi_line_comment() {
+        assert_token!(
+            "/* _0aZ!$█░ / * **/",
+            MultiLineComment,
+            " _0aZ!$█░ / * *",
+            (1, 1),
+            (1, 19)
+        );
+
+        // Notice the stripping of the "/*" and "*/" at the two ends
+        assert_token!(
+            r#"/** multi
+                *  line
+                **/"#,
+            MultiLineComment,
+            r#"* multi
+                *  line
+                *"#,
+            (1, 1),
+            (3, 19)
+        );
+
+        assert_token!(
+            r#"/** multi
+                *  line
+                *   _0aZ!$█░  */"#,
+            MultiLineComment,
+            r#"* multi
+                *  line
+                *   _0aZ!$█░  "#,
+            (1, 1),
+            (3, 32)
+        );
+    }
+
+    #[test]
+    fn multi_line_comment_unclosed() {
+        assert_token!("/*", UnclosedMultiLineComment, 1, 2);
+        assert_token!("/* *", UnclosedMultiLineComment, 1, 4);
+        assert_token!("/* * /", UnclosedMultiLineComment, 1, 6);
+        assert_token!("/*\n", UnclosedMultiLineComment, 2, 1);
+        assert_token!("/*\n* * /", UnclosedMultiLineComment, 2, 5);
     }
 }
