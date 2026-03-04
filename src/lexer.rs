@@ -263,7 +263,7 @@ impl Token {
     /// Returns the value of the token. Tokens may not always contain a value. In that case, an
     /// empty string slice is returned.
     ///
-    /// A token tries to represent the source code as close as possible. If parsing is done early,
+    /// A token tries to represent the source code as closely as possible. If parsing is done early,
     /// precision may be lost. Therefore, all tokens' values are stored as a string.
     pub fn value(&self) -> &str {
         self.value.as_str()
