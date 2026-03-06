@@ -12,12 +12,16 @@ const CARET: u8 = b'^';
 const COLON: u8 = b':';
 const COMMA: u8 = b',';
 const DOT: u8 = b'.';
+const EIGHT: u8 = b'8';
 const EQUAL: u8 = b'=';
 const EXCLAMATION: u8 = b'!';
 const GREATER_THAN: u8 = b'>';
 const HASH: u8 = b'#';
 const LESS_THAN: u8 = b'<';
 const LOWER_A: u8 = b'a';
+const LOWER_E: u8 = b'e';
+const LOWER_F: u8 = b'f';
+const LOWER_X: u8 = b'x';
 const LOWER_Z: u8 = b'z';
 const MINUS: u8 = b'-';
 const NEWLINE: u8 = b'\n';
@@ -29,12 +33,16 @@ const PERCENT: u8 = b'%';
 const PLUS: u8 = b'+';
 const QUOTATION: u8 = b'"';
 const SEMICOLON: u8 = b';';
+const SEVEN: u8 = b'7';
 const SLASH: u8 = b'/';
 const SQUARE_CLOSE: u8 = b']';
 const SQUARE_OPEN: u8 = b'[';
 const TILDE: u8 = b'~';
 const UNDERSCORE: u8 = b'_';
 const UPPER_A: u8 = b'A';
+const UPPER_E: u8 = b'E';
+const UPPER_F: u8 = b'F';
+const UPPER_X: u8 = b'X';
 const UPPER_Z: u8 = b'Z';
 const ZERO: u8 = b'0';
 
@@ -143,6 +151,21 @@ pub enum TokenKind {
     False,
     /// The `__FILE__` keyword.
     File,
+    /// A floating point number.
+    ///
+    /// Due to the implementations of the Squirrel language, some scary-looking expressions are
+    /// valid floats - they parse and compile successfully.
+    ///
+    /// # Examples
+    ///
+    /// - `1e5.125..e8...e-1..E+12.0e+10` is one token and resolves to `1e5`
+    /// - `3.08.1599.0811e2e-15e-200.0.0.01` is one token and resolves to `3.08`
+    ///
+    /// However:
+    ///
+    /// - `4.5e+10-2` is three tokens and resolves to `44998`, because it is lexed as `4.5e+10`, `-`
+    ///   and `2`.
+    Float,
     /// The `for` keyword.
     For,
     /// The `foreach` keyword.
@@ -167,6 +190,8 @@ pub enum TokenKind {
     Ins,
     /// The `instanceof` keyword.
     InstanceOf,
+    /// An integer. Could be in base 8, 10 or 16.
+    Integer,
     /// The `@` symbol signaling a lambda expression.
     Lambda,
     /// The `<=` operator.
@@ -341,6 +366,7 @@ impl Lexer {
             QUOTATION => self.string(),
             AT => self.at(),
             HASH => self.comment(self.column),
+            ZERO..=NINE => self.number(),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -365,6 +391,12 @@ impl Lexer {
             (self.line, start),
             (self.line, self.column - 1),
         )
+    }
+
+    fn error(&mut self, kind: LexerErrorKind) -> Option<Result<Token, LexerError>> {
+        self.did_send_eof = true;
+        self.index = self.source.len();
+        Some(Err(LexerError::new(kind, self.line, self.column - 1)))
     }
 
     fn eof(&mut self) -> Option<Result<Token, LexerError>> {
@@ -1134,6 +1166,124 @@ impl Lexer {
         }
     }
 
+    fn number(&mut self) -> Option<Result<Token, LexerError>> {
+        let column_start = self.column;
+        let index_start = self.index;
+        let first = self.current_byte();
+        let second = self.advance_char();
+
+        if first == ZERO {
+            match second {
+                ZERO..=SEVEN => {
+                    return self.octal(index_start, column_start);
+                }
+                UPPER_X | LOWER_X => {
+                    return self.hexadecimal(index_start, column_start);
+                }
+                EIGHT | NINE => {
+                    return self.decimal(index_start, column_start);
+                }
+                DOT | UPPER_E | LOWER_E => {}
+                _ => {
+                    return Some(Ok(self.token_on_line_with_value(
+                        TokenKind::Integer,
+                        "0",
+                        column_start,
+                    )));
+                }
+            };
+        }
+
+        let mut kind = TokenKind::Integer;
+
+        loop {
+            match self.current_byte() {
+                DOT => kind = TokenKind::Float,
+                ZERO..=NINE => {}
+                UPPER_E | LOWER_E => match self.advance_char() {
+                    ZERO..=NINE => kind = TokenKind::Float,
+                    PLUS | MINUS => match self.advance_char() {
+                        ZERO..=NINE => kind = TokenKind::Float,
+                        _ => return self.error(LexerErrorKind::MissingFloatExponent),
+                    },
+                    _ => return self.error(LexerErrorKind::MissingFloatExponent),
+                },
+
+                _ => break,
+            }
+
+            self.advance_char();
+        }
+
+        let value =
+            str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[])).unwrap();
+        Some(Ok(self.token_on_line_with_value(kind, value, column_start)))
+    }
+
+    fn octal(
+        &mut self,
+        index_start: usize,
+        column_start: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        //                     0n...
+        // self.index points at ^, n must be in 0..=7
+        loop {
+            match self.advance_char() {
+                ZERO..=SEVEN => continue,
+                EIGHT | NINE => return self.error(LexerErrorKind::InvalidOctal),
+                _ => break,
+            }
+        }
+
+        let value =
+            str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[])).unwrap();
+        Some(Ok(self.token_on_line_with_value(
+            TokenKind::Integer,
+            value,
+            column_start,
+        )))
+    }
+
+    fn hexadecimal(
+        &mut self,
+        index_start: usize,
+        column_start: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        //                     0x.. 0X..
+        // self.index points at ^ or ^
+        while let UPPER_A..=UPPER_F | LOWER_A..=LOWER_F | ZERO..=NINE = self.advance_char() {
+            continue;
+        }
+
+        let value =
+            str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[])).unwrap();
+        Some(Ok(self.token_on_line_with_value(
+            TokenKind::Integer,
+            value,
+            column_start,
+        )))
+    }
+
+    fn decimal(
+        &mut self,
+        index_start: usize,
+        column_start: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        //                     08.. 09..
+        // self.index points at ^ or ^
+        while let ZERO..=NINE = self.advance_char() {
+            continue;
+        }
+
+        let value =
+            str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[])).unwrap();
+        Some(Ok(self.token_on_line_with_value(
+            TokenKind::Integer,
+            value,
+            column_start,
+        )))
+    }
+
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
@@ -1186,6 +1336,21 @@ pub enum LexerErrorKind {
     CharTooLong,
     /// An empty `char`-like literal was encountered, i.e. `''`.
     EmptyChar,
+    /// An invalid octal number was encountered.
+    ///
+    /// Squirrel lexes octal numbers weirdly. If the second digit contains non-octal digits, i.e. 8
+    /// and 9, the entire number is understood as decimal. Otherwise, it is octal and octal lexing
+    /// rules apply.
+    ///
+    /// # Examples
+    ///
+    /// - `091` is decimal.
+    /// - `072` is octal.
+    /// - `028` is invalid octal.
+    /// - `0006` is octal.
+    InvalidOctal,
+    /// An exponent for floating point numbers written in scientific notation was missing.
+    MissingFloatExponent,
     /// A `char`-like literal was unclosed.
     UnclosedChar,
     /// A multi-line comment was unclosed.
@@ -1274,9 +1439,8 @@ mod tests {
         }};
     }
 
-    // // Ascertain that a correct stream of tokens (excluding the Eof but including
-    // // any LexerErrors) is produced from a given source string.
-    // macro_rules! assert_stream_eq {
+    // // Ascertain that a correct stream of tokens is produced from a given source string.
+    // macro_rules! assert_stream {
     //     (
     //         $source: expr,
     //         $(
@@ -1630,5 +1794,85 @@ mod tests {
         assert_token!("/* * /", UnclosedMultiLineComment, 1, 6);
         assert_token!("/*\n", UnclosedMultiLineComment, 2, 1);
         assert_token!("/*\n* * /", UnclosedMultiLineComment, 2, 5);
+    }
+
+    #[test]
+    fn octal() {
+        assert_token!("0", Integer, "0", (1, 1), (1, 1));
+        assert_token!("00000", Integer, "00000", (1, 1), (1, 5));
+        assert_token!("07125", Integer, "07125", (1, 1), (1, 5));
+        assert_token!("00000001", Integer, "00000001", (1, 1), (1, 8));
+    }
+
+    #[test]
+    fn octal_invalid() {
+        // The error pointing at one column before the offending digit
+        // is correct Squirrel diagnosis.
+        assert_token!("0080", InvalidOctal, 1, 2);
+        assert_token!("04078", InvalidOctal, 1, 4);
+    }
+
+    #[test]
+    fn decimal() {
+        assert_token!("2", Integer, "2", (1, 1), (1, 1));
+        assert_token!("42", Integer, "42", (1, 1), (1, 2));
+        assert_token!("1337", Integer, "1337", (1, 1), (1, 4));
+    }
+
+    #[test]
+    fn hexadecimals() {
+        assert_token!("0x", Integer, "0x", (1, 1), (1, 2));
+        assert_token!("0X", Integer, "0X", (1, 1), (1, 2));
+        assert_token!("0x012aBc", Integer, "0x012aBc", (1, 1), (1, 8));
+        assert_token!("0X034CdE", Integer, "0X034CdE", (1, 1), (1, 8));
+        assert_token!("0x567AbC", Integer, "0x567AbC", (1, 1), (1, 8));
+        assert_token!("0X890cDe", Integer, "0X890cDe", (1, 1), (1, 8));
+    }
+
+    #[test]
+    fn float() {
+        assert_token!("0.", Float, "0.", (1, 1), (1, 2));
+        assert_token!("0.015", Float, "0.015", (1, 1), (1, 5));
+        assert_token!("2.71", Float, "2.71", (1, 1), (1, 4));
+        assert_token!("3e8", Float, "3e8", (1, 1), (1, 3));
+        assert_token!("6.02e+23", Float, "6.02e+23", (1, 1), (1, 8));
+        assert_token!("1.6e-19", Float, "1.6e-19", (1, 1), (1, 7));
+        assert_token!("44.1E3", Float, "44.1E3", (1, 1), (1, 6));
+        assert_token!("196E+3", Float, "196E+3", (1, 1), (1, 6));
+        assert_token!("1.38E-23", Float, "1.38E-23", (1, 1), (1, 8));
+
+        // The more insane guys
+        assert_token!("5.35....1", Float, "5.35....1", (1, 1), (1, 9));
+        assert_token!("0...e2", Float, "0...e2", (1, 1), (1, 6));
+        assert_token!(
+            "1e5.125..e8...e-1..E+12.0e+10",
+            Float,
+            "1e5.125..e8...e-1..E+12.0e+10",
+            (1, 1),
+            (1, 29)
+        );
+        // assert_stream!(
+        //     "4.5e+10-2",
+        //     token(Float, "4.5e+10", (1, 1), (1, 7)),
+        //     token(Sub, "", (1, 8), (1, 8)),
+        //     token(Integer, "2", (1, 9), (1, 9))
+        // );
+    }
+
+    #[test]
+    fn float_missing_exponent() {
+        assert_token!("0e", MissingFloatExponent, 1, 2);
+        assert_token!("0E", MissingFloatExponent, 1, 2);
+        assert_token!("1.2e+", MissingFloatExponent, 1, 5);
+        assert_token!("1.2e-", MissingFloatExponent, 1, 5);
+        assert_token!("3.E+", MissingFloatExponent, 1, 4);
+        assert_token!("3.E-", MissingFloatExponent, 1, 4);
+        assert_token!("4.56E-", MissingFloatExponent, 1, 6);
+        assert_token!("4.56E-", MissingFloatExponent, 1, 6);
+        // If the symbol after "e" is a + or -, the error points at the symbol.
+        // Otherwise, it points at the "e".
+        assert_token!("7e8..9.0e.", MissingFloatExponent, 1, 9);
+        assert_token!("7e8..9.0e+", MissingFloatExponent, 1, 10);
+        assert_token!("7e8..9.0e-", MissingFloatExponent, 1, 10);
     }
 }
