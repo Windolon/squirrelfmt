@@ -1606,6 +1606,7 @@ mod tests {
         assert_token!(";", Semicolon, "", (1, 1), (1, 1));
         assert_token!("]", SquareClose, "", (1, 1), (1, 1));
         assert_token!("[", SquareOpen, "", (1, 1), (1, 1));
+        assert_token!("@", Lambda, "", (1, 1), (1, 1));
     }
 
     #[test]
@@ -1727,11 +1728,6 @@ mod tests {
             2,
             10
         );
-    }
-
-    #[test]
-    fn lambda() {
-        assert_token!("@", Lambda, "", (1, 1), (1, 1));
     }
 
     #[test]
