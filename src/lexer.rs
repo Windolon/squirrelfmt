@@ -1872,7 +1872,7 @@ mod tests {
         // If the symbol after "e" is a + or -, the error points at the symbol.
         // Otherwise, it points at the "e".
         assert_token!("7e8..9.0e.", MissingFloatExponent, 1, 9);
-        assert_token!("7e8..9.0e+", MissingFloatExponent, 1, 10);
-        assert_token!("7e8..9.0e-", MissingFloatExponent, 1, 10);
+        assert_token!("7e8..9.0e+a", MissingFloatExponent, 1, 10);
+        assert_token!("7e8..9.0e-b", MissingFloatExponent, 1, 10);
     }
 }
