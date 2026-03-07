@@ -1439,30 +1439,26 @@ mod tests {
         }};
     }
 
-    // // Ascertain that a correct stream of tokens is produced from a given source string.
-    // macro_rules! assert_stream {
-    //     (
-    //         $source: expr,
-    //         $(
-    //             $token: expr
-    //         ),+
-    //     ) => {{
-    //         let mut lexer = Lexer::new($source);
-    //         let mut vec_source = Vec::new();
-    //
-    //         let mut token = lexer.next_token();
-    //         while token.is_some() {
-    //             vec_source.push(token);
-    //             token = lexer.next_token();
-    //         }
-    //         match vec_source.pop() {
-    //             Some(token) =>
-    //             None => unreachable!(),
-    //         }
-    //
-    //         assert_eq!(vec_source, vec![$($token,)+]);
-    //     }};
-    // }
+    // Ascertain that a correct stream of tokens is produced from a given source string.
+    macro_rules! assert_stream {
+        (
+            $source: expr,
+            $(
+                $token: expr
+            ),+
+        ) => {{
+            let mut lexer = Lexer::new($source);
+            let mut vec_source = Vec::new();
+
+            let mut token = lexer.next_token();
+            while token.is_some() {
+                vec_source.push(token);
+                token = lexer.next_token();
+            }
+
+            assert_eq!(vec_source, vec![$($token,)+]);
+        }};
+    }
 
     #[test]
     fn eof_empty_none() {
@@ -1847,12 +1843,13 @@ mod tests {
             (1, 1),
             (1, 29)
         );
-        // assert_stream!(
-        //     "4.5e+10-2",
-        //     token(Float, "4.5e+10", (1, 1), (1, 7)),
-        //     token(Sub, "", (1, 8), (1, 8)),
-        //     token(Integer, "2", (1, 9), (1, 9))
-        // );
+        assert_stream!(
+            "4.5e+10-2",
+            token(Float, "4.5e+10", (1, 1), (1, 7)),
+            token(Sub, "", (1, 8), (1, 8)),
+            token(Integer, "2", (1, 9), (1, 9)),
+            token(Eof, "", (1, 9), (1, 9))
+        );
     }
 
     #[test]
