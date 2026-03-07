@@ -323,14 +323,7 @@ impl Lexer {
             b'@' => self.at(),
             b'#' => self.comment(self.column),
             b'0'..=b'9' => self.number(),
-            _ => {
-                self.terminate();
-                Some(Err(LexerError::new(
-                    LexerErrorKind::UnexpectedSymbol,
-                    self.line,
-                    self.column,
-                )))
-            }
+            _ => self.error(LexerErrorKind::UnexpectedSymbol, self.column),
         }
     }
 
@@ -349,10 +342,10 @@ impl Lexer {
         )
     }
 
-    fn error(&mut self, kind: LexerErrorKind) -> Option<Result<Token, LexerError>> {
+    fn error(&mut self, kind: LexerErrorKind, column: u32) -> Option<Result<Token, LexerError>> {
         self.did_send_eof = true;
         self.index = self.source.len();
-        Some(Err(LexerError::new(kind, self.line, self.column - 1)))
+        Some(Err(LexerError::new(kind, self.line, column)))
     }
 
     fn eof(&mut self) -> Option<Result<Token, LexerError>> {
@@ -710,25 +703,11 @@ impl Lexer {
         let column_start = self.column;
         match self.advance_byte() {
             // '': empty
-            b'\'' => {
-                self.terminate();
-                Some(Err(LexerError::new(
-                    LexerErrorKind::EmptyChar,
-                    self.line,
-                    self.column,
-                )))
-            }
+            b'\'' => self.error(LexerErrorKind::EmptyChar, self.column),
             // '\<escape>
             b'\\' => todo!(),
             // '<\n> or '<end>: unclosed
-            b'\n' | b'\0' => {
-                self.terminate();
-                Some(Err(LexerError::new(
-                    LexerErrorKind::UnclosedChar,
-                    self.line,
-                    column_start,
-                )))
-            }
+            b'\n' | b'\0' => self.error(LexerErrorKind::UnclosedChar, column_start),
             // '<ascii>
             0..=127 => match self.advance_byte() {
                 // '<ascii>': correct
@@ -743,33 +722,12 @@ impl Lexer {
                     )))
                 }
                 // '<ascii><\n> or '<ascii><end>: unclosed
-                b'\n' | b'\0' => {
-                    self.terminate();
-                    Some(Err(LexerError::new(
-                        LexerErrorKind::UnclosedChar,
-                        self.line,
-                        self.column - 1,
-                    )))
-                }
+                b'\n' | b'\0' => self.error(LexerErrorKind::UnclosedChar, self.column - 1),
                 // '<ascii><other>: char is too long
-                _ => {
-                    self.terminate();
-                    Some(Err(LexerError::new(
-                        LexerErrorKind::CharTooLong,
-                        self.line,
-                        self.column,
-                    )))
-                }
+                _ => self.error(LexerErrorKind::CharTooLong, self.column),
             },
             // '<non-ascii>: oob
-            _ => {
-                self.terminate();
-                Some(Err(LexerError::new(
-                    LexerErrorKind::CharOutOfBounds,
-                    self.line,
-                    self.column,
-                )))
-            }
+            _ => self.error(LexerErrorKind::CharOutOfBounds, self.column),
         }
     }
 
@@ -790,15 +748,7 @@ impl Lexer {
 
         match self.current_byte() {
             // Unclosed
-            b'\n' | b'\0' => {
-                let column = column_start + len;
-                self.terminate();
-                Some(Err(LexerError::new(
-                    LexerErrorKind::UnclosedString,
-                    self.line,
-                    column,
-                )))
-            }
+            b'\n' | b'\0' => self.error(LexerErrorKind::UnclosedString, column_start + len),
             // Correct string
             b'"' => {
                 self.column += len + 2;
@@ -875,12 +825,7 @@ impl Lexer {
                         column = 1;
                     }
 
-                    self.terminate();
-                    Some(Err(LexerError::new(
-                        LexerErrorKind::UnclosedVerbatimString,
-                        self.line,
-                        column,
-                    )))
+                    self.error(LexerErrorKind::UnclosedVerbatimString, column)
                 } else {
                     let columns =
                         str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[]))
@@ -888,15 +833,13 @@ impl Lexer {
                             .graphemes(true)
                             .count() as u32;
 
-                    self.terminate();
-                    Some(Err(LexerError::new(
+                    self.error(
                         LexerErrorKind::UnclosedVerbatimString,
-                        self.line,
                         //                        @"...
                         // column_start points at ^, we add one to advance it to the ",
                         // then advance by however many graphemes there are to the right
                         column_start + columns + 1,
-                    )))
+                    )
                 }
             }
             // correct
@@ -1040,12 +983,7 @@ impl Lexer {
                         column = 1;
                     }
 
-                    self.terminate();
-                    Some(Err(LexerError::new(
-                        LexerErrorKind::UnclosedMultiLineComment,
-                        self.line,
-                        column,
-                    )))
+                    self.error(LexerErrorKind::UnclosedMultiLineComment, column)
                 } else {
                     let columns =
                         str::from_utf8(self.source.get(index_start..self.index).unwrap_or(&[]))
@@ -1053,12 +991,10 @@ impl Lexer {
                             .graphemes(true)
                             .count() as u32;
 
-                    self.terminate();
-                    Some(Err(LexerError::new(
+                    self.error(
                         LexerErrorKind::UnclosedMultiLineComment,
-                        self.line,
                         column_start + columns + 1,
-                    )))
+                    )
                 }
             }
             b'/' => {
@@ -1152,11 +1088,13 @@ impl Lexer {
                     b'0'..=b'9' => kind = TokenKind::Float,
                     b'+' | b'-' => match self.advance_byte() {
                         b'0'..=b'9' => kind = TokenKind::Float,
-                        _ => return self.error(LexerErrorKind::MissingFloatExponent),
+                        _ => {
+                            return self
+                                .error(LexerErrorKind::MissingFloatExponent, self.column - 1);
+                        }
                     },
-                    _ => return self.error(LexerErrorKind::MissingFloatExponent),
+                    _ => return self.error(LexerErrorKind::MissingFloatExponent, self.column - 1),
                 },
-
                 _ => break,
             }
 
@@ -1179,8 +1117,7 @@ impl Lexer {
             match self.advance_byte() {
                 b'0'..=b'7' => {}
                 b'8' | b'9' => {
-                    self.column += 1;
-                    return self.error(LexerErrorKind::InvalidOctal);
+                    return self.error(LexerErrorKind::InvalidOctal, self.column);
                 }
                 _ => break,
             }
@@ -1264,11 +1201,6 @@ impl Lexer {
         self.index += 1;
         self.line += 1;
         self.column = 1;
-    }
-
-    fn terminate(&mut self) {
-        self.did_send_eof = true;
-        self.index = self.source.len();
     }
 }
 
