@@ -1012,13 +1012,10 @@ impl Lexer {
                     last_newline_index = self.index + 1;
                 }
                 b'*' => {
-                    match self.peek_byte() {
-                        // comment ends
-                        b'/' => {
-                            self.advance_byte_nocolumn();
-                            break;
-                        }
-                        _ => {}
+                    // Comment ends
+                    if self.peek_byte() == b'/' {
+                        self.advance_byte_nocolumn();
+                        break;
                     }
                 }
                 _ => {}
