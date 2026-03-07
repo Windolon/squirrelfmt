@@ -383,7 +383,7 @@ impl Lexer {
         let column_start = self.column;
         let index_start = self.index;
 
-        while let b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' = self.advance_char() {
+        while let b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' = self.advance_byte() {
             continue;
         }
 
@@ -474,8 +474,8 @@ impl Lexer {
 
     fn exclamation(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'=' {
-            self.advance_char();
+        if self.advance_byte() == b'=' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::Neq, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::Not, column_start)))
@@ -484,8 +484,8 @@ impl Lexer {
 
     fn percent(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'=' {
-            self.advance_char();
+        if self.advance_byte() == b'=' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::ModAssign, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::Mod, column_start)))
@@ -494,8 +494,8 @@ impl Lexer {
 
     fn ampersand(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'&' {
-            self.advance_char();
+        if self.advance_byte() == b'&' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::And, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::BitAnd, column_start)))
@@ -504,8 +504,8 @@ impl Lexer {
 
     fn asterisk(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'=' {
-            self.advance_char();
+        if self.advance_byte() == b'=' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::MultAssign, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::Mult, column_start)))
@@ -514,13 +514,13 @@ impl Lexer {
 
     fn plus(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'+' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::Increment, column_start)))
             }
             b'=' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::AddAssign, column_start)))
             }
             _ => Some(Ok(self.token_on_line(TokenKind::Add, column_start))),
@@ -529,13 +529,13 @@ impl Lexer {
 
     fn minus(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'-' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::Decrement, column_start)))
             }
             b'=' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::SubAssign, column_start)))
             }
             _ => Some(Ok(self.token_on_line(TokenKind::Sub, column_start))),
@@ -544,9 +544,9 @@ impl Lexer {
 
     fn slash(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'=' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::DivAssign, column_start)))
             }
             // Comment.
@@ -558,18 +558,18 @@ impl Lexer {
 
     fn less_than(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'-' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::Ins, column_start)))
             }
             b'<' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::BitLeft, column_start)))
             }
-            b'=' => match self.advance_char() {
+            b'=' => match self.advance_byte() {
                 b'>' => {
-                    self.advance_char();
+                    self.advance_byte();
                     Some(Ok(self.token_on_line(TokenKind::Spaceship, column_start)))
                 }
                 _ => Some(Ok(self.token_on_line(TokenKind::Le, column_start))),
@@ -580,8 +580,8 @@ impl Lexer {
 
     fn equal(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'=' {
-            self.advance_char();
+        if self.advance_byte() == b'=' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::Eq, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::Assign, column_start)))
@@ -590,14 +590,14 @@ impl Lexer {
 
     fn greater_than(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'=' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::Ge, column_start)))
             }
-            b'>' => match self.advance_char() {
+            b'>' => match self.advance_byte() {
                 b'>' => {
-                    self.advance_char();
+                    self.advance_byte();
                     Some(Ok(
                         self.token_on_line(TokenKind::UnsignedRight, column_start)
                     ))
@@ -610,14 +610,14 @@ impl Lexer {
 
     fn caret(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        self.advance_char();
+        self.advance_byte();
         Some(Ok(self.token_on_line(TokenKind::BitXor, column_start)))
     }
 
     fn bar(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == b'|' {
-            self.advance_char();
+        if self.advance_byte() == b'|' {
+            self.advance_byte();
             Some(Ok(self.token_on_line(TokenKind::Or, column_start)))
         } else {
             Some(Ok(self.token_on_line(TokenKind::BitOr, column_start)))
@@ -626,13 +626,13 @@ impl Lexer {
 
     fn tilde(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        self.advance_char();
+        self.advance_byte();
         Some(Ok(self.token_on_line(TokenKind::BitNot, column_start)))
     }
 
     fn comma(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        self.advance_char();
+        self.advance_byte();
         Some(Ok(self.token_on_line(TokenKind::Comma, column_start)))
     }
 
@@ -641,7 +641,7 @@ impl Lexer {
         // other derived methods?
         let column_start = self.column;
         let current_byte = self.current_byte();
-        self.advance_char();
+        self.advance_byte();
         let token = match current_byte {
             b'(' => self.token_on_line(TokenKind::ParenOpen, column_start),
             b')' => self.token_on_line(TokenKind::ParenClose, column_start),
@@ -653,7 +653,7 @@ impl Lexer {
     fn square(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         let current_byte = self.current_byte();
-        self.advance_char();
+        self.advance_byte();
         let token = match current_byte {
             b'[' => self.token_on_line(TokenKind::SquareOpen, column_start),
             b']' => self.token_on_line(TokenKind::SquareClose, column_start),
@@ -665,7 +665,7 @@ impl Lexer {
     fn brace(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         let current_byte = self.current_byte();
-        self.advance_char();
+        self.advance_byte();
         let token = match current_byte {
             b'{' => self.token_on_line(TokenKind::BraceOpen, column_start),
             b'}' => self.token_on_line(TokenKind::BraceClose, column_start),
@@ -676,10 +676,10 @@ impl Lexer {
 
     fn dot(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
-            b'.' => match self.advance_char() {
+        match self.advance_byte() {
+            b'.' => match self.advance_byte() {
                 b'.' => {
-                    self.advance_char();
+                    self.advance_byte();
                     Some(Ok(self.token_on_line(TokenKind::Ellipsis, column_start)))
                 }
                 // ".." is invalid and should return an error
@@ -691,9 +691,9 @@ impl Lexer {
 
     fn colon(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b':' => {
-                self.advance_char();
+                self.advance_byte();
                 Some(Ok(self.token_on_line(TokenKind::ScopeRes, column_start)))
             }
             _ => Some(Ok(self.token_on_line(TokenKind::Colon, column_start))),
@@ -702,13 +702,13 @@ impl Lexer {
 
     fn semicolon(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        self.advance_char();
+        self.advance_byte();
         Some(Ok(self.token_on_line(TokenKind::Semicolon, column_start)))
     }
 
     fn char(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             // '': empty
             b'\'' => {
                 self.terminate();
@@ -730,11 +730,11 @@ impl Lexer {
                 )))
             }
             // '<ascii>
-            0..=127 => match self.advance_char() {
+            0..=127 => match self.advance_byte() {
                 // '<ascii>': correct
                 b'\'' => {
                     let index_start = self.index - 1;
-                    self.advance_char();
+                    self.advance_byte();
                     let value = str::from_utf8(&self.source[index_start..self.index - 1]).unwrap();
                     Some(Ok(self.token_on_line_with_value(
                         TokenKind::Char,
@@ -778,7 +778,7 @@ impl Lexer {
         let index_start = self.index + 1;
 
         loop {
-            match self.advance_byte() {
+            match self.advance_byte_nocolumn() {
                 b'"' | b'\n' | b'\0' => break,
                 _ => {}
             }
@@ -816,7 +816,7 @@ impl Lexer {
 
     fn at(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        match self.advance_char() {
+        match self.advance_byte() {
             b'"' => self.verbatim_string(self.line, column_start),
             _ => Some(Ok(self.token_on_line(TokenKind::Lambda, column_start))),
         }
@@ -833,7 +833,7 @@ impl Lexer {
         let mut last_newline_index = 0;
 
         loop {
-            match self.advance_byte() {
+            match self.advance_byte_nocolumn() {
                 b'\0' => break,
                 b'\n' => {
                     // NOTE: column count will be calculated later in this method
@@ -847,7 +847,7 @@ impl Lexer {
                             //                                       ... ""hello"" ...
                             // If we don't advance here, the next match will see ^
                             // and think that the verbatim string has ended
-                            self.advance_byte();
+                            self.advance_byte_nocolumn();
                         }
                         // string ends
                         _ => break,
@@ -917,7 +917,7 @@ impl Lexer {
                     .count() as u32
                         + 1; // to account for the ending "
 
-                    self.advance_byte();
+                    self.advance_byte_nocolumn();
                     self.column = column + 1;
 
                     Some(Ok(Token::new(
@@ -933,7 +933,7 @@ impl Lexer {
                     .into_owned();
                     let columns = value.graphemes(true).count() as u32;
 
-                    self.advance_byte();
+                    self.advance_byte_nocolumn();
                     //                        @"..."
                     // column_start points at ^, we add two to account for the " pair,
                     // then advance by however many graphemes there are to the right,
@@ -965,7 +965,7 @@ impl Lexer {
         let index_start = self.index + 1;
 
         loop {
-            match self.advance_byte() {
+            match self.advance_byte_nocolumn() {
                 b'\n' | b'\0' => break,
                 _ => {}
             }
@@ -1004,7 +1004,7 @@ impl Lexer {
         let mut last_newline_index = 0;
 
         loop {
-            match self.advance_byte() {
+            match self.advance_byte_nocolumn() {
                 b'\0' => break,
                 b'\n' => {
                     self.line += 1;
@@ -1015,7 +1015,7 @@ impl Lexer {
                     match self.peek_byte() {
                         // comment ends
                         b'/' => {
-                            self.advance_byte();
+                            self.advance_byte_nocolumn();
                             break;
                         }
                         _ => {}
@@ -1084,7 +1084,7 @@ impl Lexer {
                     .count() as u32
                         + 1; // ... so we only add 1 to compensate for the "/"
 
-                    self.advance_byte();
+                    self.advance_byte_nocolumn();
                     self.column = column + 1;
 
                     Some(Ok(Token::new(
@@ -1100,7 +1100,7 @@ impl Lexer {
                     .into_owned();
                     let columns = value.graphemes(true).count() as u32;
 
-                    self.advance_byte();
+                    self.advance_byte_nocolumn();
                     // Add 4 to account for "*", "*/" and advance_byte()
                     self.column = column_start + columns + 4;
 
@@ -1121,7 +1121,7 @@ impl Lexer {
         let column_start = self.column;
         let index_start = self.index;
         let first = self.current_byte();
-        let second = self.advance_char();
+        let second = self.advance_byte();
 
         if first == b'0' {
             match second {
@@ -1151,9 +1151,9 @@ impl Lexer {
             match self.current_byte() {
                 b'.' => kind = TokenKind::Float,
                 b'0'..=b'9' => {}
-                b'E' | b'e' => match self.advance_char() {
+                b'E' | b'e' => match self.advance_byte() {
                     b'0'..=b'9' => kind = TokenKind::Float,
-                    b'+' | b'-' => match self.advance_char() {
+                    b'+' | b'-' => match self.advance_byte() {
                         b'0'..=b'9' => kind = TokenKind::Float,
                         _ => return self.error(LexerErrorKind::MissingFloatExponent),
                     },
@@ -1163,7 +1163,7 @@ impl Lexer {
                 _ => break,
             }
 
-            self.advance_char();
+            self.advance_byte();
         }
 
         let value =
@@ -1179,7 +1179,7 @@ impl Lexer {
         //                     0n...
         // self.index points at ^, n must be in 0..=7
         loop {
-            match self.advance_char() {
+            match self.advance_byte() {
                 b'0'..=b'7' => {}
                 b'8' | b'9' => {
                     self.column += 1;
@@ -1205,7 +1205,7 @@ impl Lexer {
     ) -> Option<Result<Token, LexerError>> {
         //                     0x.. 0X..
         // self.index points at ^ or ^
-        while let b'A'..=b'F' | b'a'..=b'f' | b'0'..=b'9' = self.advance_char() {
+        while let b'A'..=b'F' | b'a'..=b'f' | b'0'..=b'9' = self.advance_byte() {
             continue;
         }
 
@@ -1225,7 +1225,7 @@ impl Lexer {
     ) -> Option<Result<Token, LexerError>> {
         //                     08.. 09..
         // self.index points at ^ or ^
-        while let b'0'..=b'9' = self.advance_char() {
+        while let b'0'..=b'9' = self.advance_byte() {
             continue;
         }
 
@@ -1255,7 +1255,7 @@ impl Lexer {
     // Only call this when you are sure that the current "string environment"
     // doesn't contain any unicode symbols, otherwise the column logic will break.
     // If working in such an environment, you should handle the logic manually.
-    fn advance_char(&mut self) -> u8 {
+    fn advance_byte(&mut self) -> u8 {
         self.index += 1;
         self.column += 1;
         self.current_byte()
@@ -1263,7 +1263,7 @@ impl Lexer {
 
     // Same as advance_char, but does not increment column count.
     // You should handle the column logic manually.
-    fn advance_byte(&mut self) -> u8 {
+    fn advance_byte_nocolumn(&mut self) -> u8 {
         self.index += 1;
         self.current_byte()
     }
