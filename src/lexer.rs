@@ -1230,7 +1230,10 @@ impl Lexer {
         loop {
             match self.advance_char() {
                 ZERO..=SEVEN => continue,
-                EIGHT | NINE => return self.error(LexerErrorKind::InvalidOctal),
+                EIGHT | NINE => {
+                    self.column += 1;
+                    return self.error(LexerErrorKind::InvalidOctal);
+                }
                 _ => break,
             }
         }
@@ -1798,10 +1801,10 @@ mod tests {
 
     #[test]
     fn octal_invalid() {
-        // The error pointing at one column before the offending digit
-        // is correct Squirrel diagnosis.
-        assert_token!("0080", InvalidOctal, 1, 2);
-        assert_token!("04078", InvalidOctal, 1, 4);
+        // The error should point at the offending digit. Squirrel's own diagnostics
+        // point at one column before the offending digit, which doesn't make a lot of sense.
+        assert_token!("0080", InvalidOctal, 1, 3);
+        assert_token!("04078", InvalidOctal, 1, 5);
     }
 
     #[test]
