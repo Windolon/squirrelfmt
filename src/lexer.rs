@@ -1,51 +1,5 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-const AMPERSAND: u8 = b'&';
-const APOSTROPHE: u8 = b'\'';
-const ASTERISK: u8 = b'*';
-const AT: u8 = b'@';
-const BACKSLASH: u8 = b'\\';
-const BAR: u8 = b'|';
-const BRACE_CLOSE: u8 = b'}';
-const BRACE_OPEN: u8 = b'{';
-const CARET: u8 = b'^';
-const COLON: u8 = b':';
-const COMMA: u8 = b',';
-const DOT: u8 = b'.';
-const EIGHT: u8 = b'8';
-const EQUAL: u8 = b'=';
-const EXCLAMATION: u8 = b'!';
-const GREATER_THAN: u8 = b'>';
-const HASH: u8 = b'#';
-const LESS_THAN: u8 = b'<';
-const LOWER_A: u8 = b'a';
-const LOWER_E: u8 = b'e';
-const LOWER_F: u8 = b'f';
-const LOWER_X: u8 = b'x';
-const LOWER_Z: u8 = b'z';
-const MINUS: u8 = b'-';
-const NEWLINE: u8 = b'\n';
-const NINE: u8 = b'9';
-const NULL: u8 = b'\0';
-const PAREN_CLOSE: u8 = b')';
-const PAREN_OPEN: u8 = b'(';
-const PERCENT: u8 = b'%';
-const PLUS: u8 = b'+';
-const QUOTATION: u8 = b'"';
-const SEMICOLON: u8 = b';';
-const SEVEN: u8 = b'7';
-const SLASH: u8 = b'/';
-const SQUARE_CLOSE: u8 = b']';
-const SQUARE_OPEN: u8 = b'[';
-const TILDE: u8 = b'~';
-const UNDERSCORE: u8 = b'_';
-const UPPER_A: u8 = b'A';
-const UPPER_E: u8 = b'E';
-const UPPER_F: u8 = b'F';
-const UPPER_X: u8 = b'X';
-const UPPER_Z: u8 = b'Z';
-const ZERO: u8 = b'0';
-
 /// Represents a symbol's exact location in source code.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Position {
@@ -342,33 +296,33 @@ impl Lexer {
     /// Returns the next token.
     pub fn next_token(&mut self) -> Option<Result<Token, LexerError>> {
         match self.current_byte() {
-            NULL => self.eof(),
-            UPPER_A..=UPPER_Z | LOWER_A..=LOWER_Z | UNDERSCORE => self.identifier_or_keyword(),
-            EXCLAMATION => self.exclamation(),
-            PERCENT => self.percent(),
-            AMPERSAND => self.ampersand(),
-            ASTERISK => self.asterisk(),
-            PLUS => self.plus(),
-            MINUS => self.minus(),
-            SLASH => self.slash(),
-            LESS_THAN => self.less_than(),
-            EQUAL => self.equal(),
-            GREATER_THAN => self.greater_than(),
-            CARET => self.caret(),
-            BAR => self.bar(),
-            TILDE => self.tilde(),
-            COMMA => self.comma(),
-            PAREN_OPEN | PAREN_CLOSE => self.paren(),
-            SQUARE_OPEN | SQUARE_CLOSE => self.square(),
-            BRACE_OPEN | BRACE_CLOSE => self.brace(),
-            DOT => self.dot(),
-            COLON => self.colon(),
-            SEMICOLON => self.semicolon(),
-            APOSTROPHE => self.char(),
-            QUOTATION => self.string(),
-            AT => self.at(),
-            HASH => self.comment(self.column),
-            ZERO..=NINE => self.number(),
+            b'\0' => self.eof(),
+            b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.identifier_or_keyword(),
+            b'!' => self.exclamation(),
+            b'%' => self.percent(),
+            b'&' => self.ampersand(),
+            b'*' => self.asterisk(),
+            b'+' => self.plus(),
+            b'-' => self.minus(),
+            b'/' => self.slash(),
+            b'<' => self.less_than(),
+            b'=' => self.equal(),
+            b'>' => self.greater_than(),
+            b'^' => self.caret(),
+            b'|' => self.bar(),
+            b'~' => self.tilde(),
+            b',' => self.comma(),
+            b'(' | b')' => self.paren(),
+            b'[' | b']' => self.square(),
+            b'{' | b'}' => self.brace(),
+            b'.' => self.dot(),
+            b':' => self.colon(),
+            b';' => self.semicolon(),
+            b'\'' => self.char(),
+            b'"' => self.string(),
+            b'@' => self.at(),
+            b'#' => self.comment(self.column),
+            b'0'..=b'9' => self.number(),
             _ => {
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -429,9 +383,7 @@ impl Lexer {
         let column_start = self.column;
         let index_start = self.index;
 
-        while let UPPER_A..=UPPER_Z | LOWER_A..=LOWER_Z | ZERO..=NINE | UNDERSCORE =
-            self.advance_char()
-        {
+        while let b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' = self.advance_char() {
             continue;
         }
 
@@ -522,7 +474,7 @@ impl Lexer {
 
     fn exclamation(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == EQUAL {
+        if self.advance_char() == b'=' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::Neq, column_start)))
         } else {
@@ -532,7 +484,7 @@ impl Lexer {
 
     fn percent(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == EQUAL {
+        if self.advance_char() == b'=' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::ModAssign, column_start)))
         } else {
@@ -542,7 +494,7 @@ impl Lexer {
 
     fn ampersand(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == AMPERSAND {
+        if self.advance_char() == b'&' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::And, column_start)))
         } else {
@@ -552,7 +504,7 @@ impl Lexer {
 
     fn asterisk(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == EQUAL {
+        if self.advance_char() == b'=' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::MultAssign, column_start)))
         } else {
@@ -563,11 +515,11 @@ impl Lexer {
     fn plus(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            PLUS => {
+            b'+' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::Increment, column_start)))
             }
-            EQUAL => {
+            b'=' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::AddAssign, column_start)))
             }
@@ -578,11 +530,11 @@ impl Lexer {
     fn minus(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            MINUS => {
+            b'-' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::Decrement, column_start)))
             }
-            EQUAL => {
+            b'=' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::SubAssign, column_start)))
             }
@@ -593,13 +545,13 @@ impl Lexer {
     fn slash(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            EQUAL => {
+            b'=' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::DivAssign, column_start)))
             }
             // Comment.
-            SLASH => self.comment(column_start),
-            ASTERISK => self.multi_line_comment(self.line, column_start),
+            b'/' => self.comment(column_start),
+            b'*' => self.multi_line_comment(self.line, column_start),
             _ => Some(Ok(self.token_on_line(TokenKind::Div, column_start))),
         }
     }
@@ -607,16 +559,16 @@ impl Lexer {
     fn less_than(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            MINUS => {
+            b'-' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::Ins, column_start)))
             }
-            LESS_THAN => {
+            b'<' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::BitLeft, column_start)))
             }
-            EQUAL => match self.advance_char() {
-                GREATER_THAN => {
+            b'=' => match self.advance_char() {
+                b'>' => {
                     self.advance_char();
                     Some(Ok(self.token_on_line(TokenKind::Spaceship, column_start)))
                 }
@@ -628,7 +580,7 @@ impl Lexer {
 
     fn equal(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == EQUAL {
+        if self.advance_char() == b'=' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::Eq, column_start)))
         } else {
@@ -639,12 +591,12 @@ impl Lexer {
     fn greater_than(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            EQUAL => {
+            b'=' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::Ge, column_start)))
             }
-            GREATER_THAN => match self.advance_char() {
-                GREATER_THAN => {
+            b'>' => match self.advance_char() {
+                b'>' => {
                     self.advance_char();
                     Some(Ok(
                         self.token_on_line(TokenKind::UnsignedRight, column_start)
@@ -664,7 +616,7 @@ impl Lexer {
 
     fn bar(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
-        if self.advance_char() == BAR {
+        if self.advance_char() == b'|' {
             self.advance_char();
             Some(Ok(self.token_on_line(TokenKind::Or, column_start)))
         } else {
@@ -691,8 +643,8 @@ impl Lexer {
         let current_byte = self.current_byte();
         self.advance_char();
         let token = match current_byte {
-            PAREN_OPEN => self.token_on_line(TokenKind::ParenOpen, column_start),
-            PAREN_CLOSE => self.token_on_line(TokenKind::ParenClose, column_start),
+            b'(' => self.token_on_line(TokenKind::ParenOpen, column_start),
+            b')' => self.token_on_line(TokenKind::ParenClose, column_start),
             _ => unreachable!(),
         };
         Some(Ok(token))
@@ -703,8 +655,8 @@ impl Lexer {
         let current_byte = self.current_byte();
         self.advance_char();
         let token = match current_byte {
-            SQUARE_OPEN => self.token_on_line(TokenKind::SquareOpen, column_start),
-            SQUARE_CLOSE => self.token_on_line(TokenKind::SquareClose, column_start),
+            b'[' => self.token_on_line(TokenKind::SquareOpen, column_start),
+            b']' => self.token_on_line(TokenKind::SquareClose, column_start),
             _ => unreachable!(),
         };
         Some(Ok(token))
@@ -715,8 +667,8 @@ impl Lexer {
         let current_byte = self.current_byte();
         self.advance_char();
         let token = match current_byte {
-            BRACE_OPEN => self.token_on_line(TokenKind::BraceOpen, column_start),
-            BRACE_CLOSE => self.token_on_line(TokenKind::BraceClose, column_start),
+            b'{' => self.token_on_line(TokenKind::BraceOpen, column_start),
+            b'}' => self.token_on_line(TokenKind::BraceClose, column_start),
             _ => unreachable!(),
         };
         Some(Ok(token))
@@ -725,8 +677,8 @@ impl Lexer {
     fn dot(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            DOT => match self.advance_char() {
-                DOT => {
+            b'.' => match self.advance_char() {
+                b'.' => {
                     self.advance_char();
                     Some(Ok(self.token_on_line(TokenKind::Ellipsis, column_start)))
                 }
@@ -740,7 +692,7 @@ impl Lexer {
     fn colon(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            COLON => {
+            b':' => {
                 self.advance_char();
                 Some(Ok(self.token_on_line(TokenKind::ScopeRes, column_start)))
             }
@@ -758,7 +710,7 @@ impl Lexer {
         let column_start = self.column;
         match self.advance_char() {
             // '': empty
-            APOSTROPHE => {
+            b'\'' => {
                 self.terminate();
                 Some(Err(LexerError::new(
                     LexerErrorKind::EmptyChar,
@@ -767,9 +719,9 @@ impl Lexer {
                 )))
             }
             // '\<escape>
-            BACKSLASH => todo!(),
+            b'\\' => todo!(),
             // '<\n> or '<end>: unclosed
-            NEWLINE | NULL => {
+            b'\n' | b'\0' => {
                 self.terminate();
                 Some(Err(LexerError::new(
                     LexerErrorKind::UnclosedChar,
@@ -780,7 +732,7 @@ impl Lexer {
             // '<ascii>
             0..=127 => match self.advance_char() {
                 // '<ascii>': correct
-                APOSTROPHE => {
+                b'\'' => {
                     let index_start = self.index - 1;
                     self.advance_char();
                     let value = str::from_utf8(&self.source[index_start..self.index - 1]).unwrap();
@@ -791,7 +743,7 @@ impl Lexer {
                     )))
                 }
                 // '<ascii><\n> or '<ascii><end>: unclosed
-                NEWLINE | NULL => {
+                b'\n' | b'\0' => {
                     self.terminate();
                     Some(Err(LexerError::new(
                         LexerErrorKind::UnclosedChar,
@@ -827,18 +779,18 @@ impl Lexer {
 
         loop {
             match self.advance_byte() {
-                QUOTATION | NEWLINE | NULL => break,
+                b'"' | b'\n' | b'\0' => break,
                 _ => continue,
             }
         }
 
-        // self.index points at QUOTATION, NEWLINE or NULL
+        // self.index points at ", NEWLINE or NULL
         let value = str::from_utf8(&self.source[index_start..self.index]).unwrap();
         let len = value.graphemes(true).count() as u32;
 
         match self.current_byte() {
             // Unclosed
-            NEWLINE | NULL => {
+            b'\n' | b'\0' => {
                 let column = column_start + len;
                 self.terminate();
                 Some(Err(LexerError::new(
@@ -848,7 +800,7 @@ impl Lexer {
                 )))
             }
             // Correct string
-            QUOTATION => {
+            b'"' => {
                 self.column += len + 2;
                 // Hmm, can't use advance_byte() here.
                 self.index += 1;
@@ -865,7 +817,7 @@ impl Lexer {
     fn at(&mut self) -> Option<Result<Token, LexerError>> {
         let column_start = self.column;
         match self.advance_char() {
-            QUOTATION => self.verbatim_string(self.line, column_start),
+            b'"' => self.verbatim_string(self.line, column_start),
             _ => Some(Ok(self.token_on_line(TokenKind::Lambda, column_start))),
         }
     }
@@ -882,17 +834,17 @@ impl Lexer {
 
         loop {
             match self.advance_byte() {
-                NULL => break,
-                NEWLINE => {
+                b'\0' => break,
+                b'\n' => {
                     // NOTE: column count will be calculated later in this method
                     self.line += 1;
                     // A newline counts as one grapheme, we don't want to include that
                     last_newline_index = self.index + 1;
                     continue;
                 }
-                QUOTATION => {
+                b'"' => {
                     match self.peek_byte() {
-                        QUOTATION => {
+                        b'"' => {
                             //                                       ... ""hello"" ...
                             // If we don't advance here, the next match will see ^
                             // and think that the verbatim string has ended
@@ -907,10 +859,10 @@ impl Lexer {
             }
         }
 
-        // self.index points at NULL or QUOTATION
+        // self.index points at NULL or "
         match self.current_byte() {
             // unclosed
-            NULL => {
+            b'\0' => {
                 if self.line != line_start {
                     let mut column = str::from_utf8(
                         self.source
@@ -950,7 +902,7 @@ impl Lexer {
                 }
             }
             // correct
-            QUOTATION => {
+            b'"' => {
                 if self.line != line_start {
                     let value = String::from_utf8_lossy(
                         self.source.get(index_start..self.index).unwrap_or(&[]),
@@ -1008,15 +960,15 @@ impl Lexer {
         //                     //    #
         // self.index points at ^ or ^
         let is_shell_comment = match self.current_byte() {
-            HASH => true,
-            SLASH => false,
+            b'#' => true,
+            b'/' => false,
             _ => unreachable!(),
         };
         let index_start = self.index + 1;
 
         loop {
             match self.advance_byte() {
-                NEWLINE | NULL => break,
+                b'\n' | b'\0' => break,
                 _ => continue,
             }
         }
@@ -1055,17 +1007,17 @@ impl Lexer {
 
         loop {
             match self.advance_byte() {
-                NULL => break,
-                NEWLINE => {
+                b'\0' => break,
+                b'\n' => {
                     self.line += 1;
                     // A newline counts as one grapheme, we don't want to include that
                     last_newline_index = self.index + 1;
                     continue;
                 }
-                ASTERISK => {
+                b'*' => {
                     match self.peek_byte() {
                         // comment ends
-                        SLASH => {
+                        b'/' => {
                             self.advance_byte();
                             break;
                         }
@@ -1076,10 +1028,10 @@ impl Lexer {
             }
         }
 
-        // self.index points at NULL or SLASH
+        // self.index points at NULL or /
         match self.current_byte() {
             // unclosed
-            NULL => {
+            b'\0' => {
                 if self.line != line_start {
                     let mut column = str::from_utf8(
                         self.source
@@ -1115,7 +1067,7 @@ impl Lexer {
                     )))
                 }
             }
-            SLASH => {
+            b'/' => {
                 if self.line != line_start {
                     let value = String::from_utf8_lossy(
                         //           ... */
@@ -1174,18 +1126,18 @@ impl Lexer {
         let first = self.current_byte();
         let second = self.advance_char();
 
-        if first == ZERO {
+        if first == b'0' {
             match second {
-                ZERO..=SEVEN => {
+                b'0'..=b'7' => {
                     return self.octal(index_start, column_start);
                 }
-                UPPER_X | LOWER_X => {
+                b'X' | b'x' => {
                     return self.hexadecimal(index_start, column_start);
                 }
-                EIGHT | NINE => {
+                b'8' | b'9' => {
                     return self.decimal(index_start, column_start);
                 }
-                DOT | UPPER_E | LOWER_E => {}
+                b'.' | b'E' | b'e' => {}
                 _ => {
                     return Some(Ok(self.token_on_line_with_value(
                         TokenKind::Integer,
@@ -1200,12 +1152,12 @@ impl Lexer {
 
         loop {
             match self.current_byte() {
-                DOT => kind = TokenKind::Float,
-                ZERO..=NINE => {}
-                UPPER_E | LOWER_E => match self.advance_char() {
-                    ZERO..=NINE => kind = TokenKind::Float,
-                    PLUS | MINUS => match self.advance_char() {
-                        ZERO..=NINE => kind = TokenKind::Float,
+                b'.' => kind = TokenKind::Float,
+                b'0'..=b'9' => {}
+                b'E' | b'e' => match self.advance_char() {
+                    b'0'..=b'9' => kind = TokenKind::Float,
+                    b'+' | b'-' => match self.advance_char() {
+                        b'0'..=b'9' => kind = TokenKind::Float,
                         _ => return self.error(LexerErrorKind::MissingFloatExponent),
                     },
                     _ => return self.error(LexerErrorKind::MissingFloatExponent),
@@ -1231,8 +1183,8 @@ impl Lexer {
         // self.index points at ^, n must be in 0..=7
         loop {
             match self.advance_char() {
-                ZERO..=SEVEN => continue,
-                EIGHT | NINE => {
+                b'0'..=b'7' => continue,
+                b'8' | b'9' => {
                     self.column += 1;
                     return self.error(LexerErrorKind::InvalidOctal);
                 }
@@ -1256,7 +1208,7 @@ impl Lexer {
     ) -> Option<Result<Token, LexerError>> {
         //                     0x.. 0X..
         // self.index points at ^ or ^
-        while let UPPER_A..=UPPER_F | LOWER_A..=LOWER_F | ZERO..=NINE = self.advance_char() {
+        while let b'A'..=b'F' | b'a'..=b'f' | b'0'..=b'9' = self.advance_char() {
             continue;
         }
 
@@ -1276,7 +1228,7 @@ impl Lexer {
     ) -> Option<Result<Token, LexerError>> {
         //                     08.. 09..
         // self.index points at ^ or ^
-        while let ZERO..=NINE = self.advance_char() {
+        while let b'0'..=b'9' = self.advance_char() {
             continue;
         }
 
@@ -1292,14 +1244,14 @@ impl Lexer {
     fn current_byte(&self) -> u8 {
         match self.source.get(self.index) {
             Some(&n) => n,
-            None => NULL,
+            None => b'\0',
         }
     }
 
     fn peek_byte(&self) -> u8 {
         match self.source.get(self.index + 1) {
             Some(&n) => n,
-            None => NULL,
+            None => b'\0',
         }
     }
 
