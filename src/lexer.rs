@@ -780,7 +780,7 @@ impl Lexer {
         loop {
             match self.advance_byte() {
                 b'"' | b'\n' | b'\0' => break,
-                _ => continue,
+                _ => {}
             }
         }
 
@@ -840,7 +840,6 @@ impl Lexer {
                     self.line += 1;
                     // A newline counts as one grapheme, we don't want to include that
                     last_newline_index = self.index + 1;
-                    continue;
                 }
                 b'"' => {
                     match self.peek_byte() {
@@ -849,13 +848,12 @@ impl Lexer {
                             // If we don't advance here, the next match will see ^
                             // and think that the verbatim string has ended
                             self.advance_byte();
-                            continue;
                         }
                         // string ends
                         _ => break,
                     }
                 }
-                _ => continue,
+                _ => {}
             }
         }
 
@@ -969,7 +967,7 @@ impl Lexer {
         loop {
             match self.advance_byte() {
                 b'\n' | b'\0' => break,
-                _ => continue,
+                _ => {}
             }
         }
 
@@ -1012,7 +1010,6 @@ impl Lexer {
                     self.line += 1;
                     // A newline counts as one grapheme, we don't want to include that
                     last_newline_index = self.index + 1;
-                    continue;
                 }
                 b'*' => {
                     match self.peek_byte() {
@@ -1021,10 +1018,10 @@ impl Lexer {
                             self.advance_byte();
                             break;
                         }
-                        _ => continue,
+                        _ => {}
                     }
                 }
-                _ => continue,
+                _ => {}
             }
         }
 
@@ -1183,7 +1180,7 @@ impl Lexer {
         // self.index points at ^, n must be in 0..=7
         loop {
             match self.advance_char() {
-                b'0'..=b'7' => continue,
+                b'0'..=b'7' => {}
                 b'8' | b'9' => {
                     self.column += 1;
                     return self.error(LexerErrorKind::InvalidOctal);
