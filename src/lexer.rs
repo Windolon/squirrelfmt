@@ -1249,17 +1249,12 @@ impl Lexer {
         }
     }
 
-    // Only call this when you are sure that the current "string environment"
-    // doesn't contain any unicode symbols, otherwise the column logic will break.
-    // If working in such an environment, you should handle the logic manually.
     fn advance_byte(&mut self) -> u8 {
         self.index += 1;
         self.column += 1;
         self.current_byte()
     }
 
-    // Same as advance_char, but does not increment column count.
-    // You should handle the column logic manually.
     fn advance_byte_nocolumn(&mut self) -> u8 {
         self.index += 1;
         self.current_byte()
