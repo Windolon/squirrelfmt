@@ -47,7 +47,6 @@ const UPPER_Z: u8 = b'Z';
 const ZERO: u8 = b'0';
 
 /// Represents a symbol's exact location in source code.
-// TODO: How does unicode chars affect this counter?
 #[derive(Clone, Debug, PartialEq)]
 pub struct Position {
     line: u32,
@@ -61,6 +60,9 @@ impl Position {
     }
 
     /// Returns the column number of the position.
+    ///
+    /// The column count follows the [Unicode Standard Annex
+    /// #29](https://www.unicode.org/reports/tr29/) rules for grapheme cluster boundaries.
     pub fn column(&self) -> u32 {
         self.column
     }
