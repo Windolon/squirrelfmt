@@ -342,12 +342,6 @@ impl Lexer {
         )
     }
 
-    fn error(&mut self, kind: LexerErrorKind, column: u32) -> Option<Result<Token, LexerError>> {
-        self.did_send_eof = true;
-        self.index = self.source.len();
-        Some(Err(LexerError::new(kind, self.line, column)))
-    }
-
     fn eof(&mut self) -> Option<Result<Token, LexerError>> {
         let line = self.line;
         let column = self.column;
@@ -1201,6 +1195,16 @@ impl Lexer {
         self.index += 1;
         self.line += 1;
         self.column = 1;
+    }
+
+    fn get_string(&self, start: usize, stop: usize) -> String {
+        String::from_utf8_lossy(self.source.get(start..stop).unwrap_or(&[])).into_owned()
+    }
+
+    fn error(&mut self, kind: LexerErrorKind, column: u32) -> Option<Result<Token, LexerError>> {
+        self.did_send_eof = true;
+        self.index = self.source.len();
+        Some(Err(LexerError::new(kind, self.line, column)))
     }
 }
 
