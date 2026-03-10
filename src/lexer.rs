@@ -1,30 +1,5 @@
+use crate::position::Position;
 use unicode_segmentation::UnicodeSegmentation;
-
-/// Represents a symbol's exact location in source code.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Position {
-    line: u32,
-    column: u32,
-}
-
-impl Position {
-    /// Returns the line number of the position.
-    pub fn line(&self) -> u32 {
-        self.line
-    }
-
-    /// Returns the column number of the position.
-    ///
-    /// The column count follows the [Unicode Standard Annex
-    /// #29](https://www.unicode.org/reports/tr29/) rules for grapheme cluster boundaries.
-    pub fn column(&self) -> u32 {
-        self.column
-    }
-
-    fn new(line: u32, column: u32) -> Self {
-        Self { line, column }
-    }
-}
 
 /// The kind of [`Token`].
 #[derive(Debug, PartialEq)]
