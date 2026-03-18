@@ -1322,22 +1322,22 @@ mod tests {
             token(Comment("// viele Möglichkeiten".into()), (1, 1), (1, 22))
         );
 
-        // assert_stream!(
-        //     "// viele Möglichkeiten\n",
-        //     token(Comment("// viele Möglichkeiten".into()), (1, 1), (1, 22)),
-        //     token(Newline, (1, 1), (1, 23))
-        // );
+        assert_stream!(
+            "// viele Möglichkeiten\n",
+            token(Comment("// viele Möglichkeiten".into()), (1, 1), (1, 22)),
+            token(Newline, (1, 23), (1, 23))
+        );
 
         assert_stream!(
             "# viele Möglichkeiten",
             token(Comment("# viele Möglichkeiten".into()), (1, 1), (1, 21))
         );
 
-        // assert_stream!(
-        //     "# viele Möglichkeiten\n",
-        //     token(Comment("# viele Möglichkeiten".into()), (1, 1), (1, 21)),
-        //     token(Newline, (1, 1), (1, 22))
-        // );
+        assert_stream!(
+            "# viele Möglichkeiten\n",
+            token(Comment("# viele Möglichkeiten".into()), (1, 1), (1, 21)),
+            token(Newline, (1, 22), (1, 22))
+        );
     }
 
     #[test]
