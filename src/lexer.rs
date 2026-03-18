@@ -7,6 +7,8 @@ pub enum TokenKind {
     Lit(String),
     Comment(String), // Includes both "//" and "#" comments
     MultiLineComment(String),
+    Whitespace(String),
+    Newline,
 
     // Keywords
     Base,
@@ -927,6 +929,20 @@ impl Iterator for Lexer {
                 self.create_on_line(TokenKind::Semicolon, col_start)
             }
 
+            // whitespaces
+            b' ' | b'\t' => {
+                while let Some(b' ' | b'\t') = self.next_byte(true) {}
+                let value = self.string_from(idx_start);
+                self.create_on_line(TokenKind::Whitespace(value), col_start)
+            }
+
+            b'\n' => {
+                self.column += 1;
+                let token = self.create_on_line(TokenKind::Newline, col_start);
+                self.advance_line();
+                token
+            }
+
             _ => self.stop_and_error(LexerErrorKind::UnexpectedSymbol),
         }
     }
@@ -1399,6 +1415,35 @@ Möglichkeiten""#,
         assert_stream!(
             r#"@"no ""escapes""""#,
             token(Lit(r#"@"no ""escapes""""#.into()), (1, 1), (1, 17))
+        );
+    }
+
+    #[test]
+    fn whitespace() {
+        assert_stream!(" ", token(Whitespace(" ".into()), (1, 1), (1, 1)));
+        assert_stream!("\t", token(Whitespace("\t".into()), (1, 1), (1, 1)));
+        assert_stream!(
+            " a  b   c\td",
+            token(Whitespace(" ".into()), (1, 1), (1, 1)),
+            token(Ident("a".into()), (1, 2), (1, 2)),
+            token(Whitespace("  ".into()), (1, 3), (1, 4)),
+            token(Ident("b".into()), (1, 5), (1, 5)),
+            token(Whitespace("   ".into()), (1, 6), (1, 8)),
+            token(Ident("c".into()), (1, 9), (1, 9)),
+            token(Whitespace("\t".into()), (1, 10), (1, 10)),
+            token(Ident("d".into()), (1, 11), (1, 11))
+        );
+    }
+
+    #[test]
+    fn newline() {
+        assert_stream!("\n", token(Newline, (1, 1), (1, 1)));
+        assert_stream!(
+            "a\nbc\n",
+            token(Ident("a".into()), (1, 1), (1, 1)),
+            token(Newline, (1, 2), (1, 2)),
+            token(Ident("bc".into()), (2, 1), (2, 2)),
+            token(Newline, (2, 3), (2, 3))
         );
     }
 
