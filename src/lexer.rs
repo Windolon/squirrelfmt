@@ -116,6 +116,16 @@ impl Token {
     }
 }
 
+/// An iterator which returns a stream of tokens from a source string.
+///
+/// Normally, an iterator should only return `None` when the iteration has finished. This is not the
+/// case with the token stream, as after a `LexerError` pops up, the iteration terminates. There are
+/// two reasons for that:
+///
+/// 1. We want the formatter to ONLY work with code that parses. Code that doesn't lex will not
+///    parse. Thus, there is little point in returning any more tokens once an error has appeared.
+/// 2. If we choose to terminate early, we don't have to account for info recovery after an error,
+///    e.g. column counts.
 pub struct Lexer {
     source: Vec<u8>,
     index: usize,
@@ -264,15 +274,6 @@ impl Lexer {
 impl Iterator for Lexer {
     type Item = Result<Token, LexerError>;
 
-    // Normally, an iterator should only return `None` when the iteration has finished. This is not
-    // the case with the token stream, as after a `LexerError` pops up, the iteration terminates.
-    // There are two reasons for that:
-    //
-    // 1. We want the formatter to ONLY work with code that parses. Code that doesn't lex will not
-    //    parse. Thus, there is little point in returning any more tokens once an error has
-    //    appeared.
-    // 2. If we choose to terminate early, we don't have to account for info recovery after an
-    //    error, e.g. column counts.
     fn next(&mut self) -> Option<Self::Item> {
         let col_start = self.column;
         let idx_start = self.index;
