@@ -357,7 +357,7 @@ impl Iterator for Lexer {
                 // "/* ... */" multi-line comment
                 Some(b'*') => {
                     let ln_start = self.line;
-                    let did_end_properly;
+                    let did_end_properly: bool;
                     let mut last_line_start_idx = 0;
                     loop {
                         match self.next_byte(false) {
@@ -464,7 +464,7 @@ impl Iterator for Lexer {
                 // redundant code, but I haven't figured out a way of doing it yet.
                 Some(b'"') => {
                     let ln_start = self.line;
-                    let did_end_properly;
+                    let did_end_properly: bool;
                     let mut last_line_start_idx = 0;
                     loop {
                         match self.next_byte(false) {
