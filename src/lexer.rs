@@ -275,6 +275,7 @@ impl Iterator for Lexer {
     type Item = Result<Token, LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let ln_start = self.line;
         let col_start = self.column;
         let idx_start = self.index;
         match self.current_byte()? {
@@ -359,7 +360,6 @@ impl Iterator for Lexer {
             b'/' => match self.next_byte(false) {
                 // "/* ... */" multi-line comment
                 Some(b'*') => {
-                    let ln_start = self.line;
                     let did_end_properly: bool;
                     let mut last_line_start_idx = 0;
                     loop {
@@ -466,7 +466,6 @@ impl Iterator for Lexer {
                 // two parts basically have the same code. It might be possible to cut down on
                 // redundant code, but I haven't figured out a way of doing it yet.
                 Some(b'"') => {
-                    let ln_start = self.line;
                     let did_end_properly: bool;
                     let mut last_line_start_idx = 0;
                     loop {
