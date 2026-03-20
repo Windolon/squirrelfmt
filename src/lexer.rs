@@ -1,4 +1,4 @@
-use crate::position::Position;
+use derive_more::Constructor;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, PartialEq)]
@@ -103,17 +103,13 @@ pub enum TokenKind {
     At,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Constructor, Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub start: Position,
-    pub end: Position,
-}
-
-impl Token {
-    fn new(kind: TokenKind, start: Position, end: Position) -> Self {
-        Self { kind, start, end }
-    }
+    pub start_line: u32,
+    pub start_column: u32,
+    pub end_line: u32,
+    pub end_column: u32,
 }
 
 /// An iterator which returns a stream of tokens from a source string.
@@ -151,8 +147,8 @@ impl Lexer {
         self.source.get(self.index + 1).copied()
     }
 
-    fn next_byte(&mut self, cols: bool) -> Option<u8> {
-        if cols {
+    fn next_byte(&mut self, columns: bool) -> Option<u8> {
+        if columns {
             self.column += 1;
         }
         self.index += 1;
@@ -165,11 +161,11 @@ impl Lexer {
         self.column = 1;
     }
 
-    fn string_from(&self, idx_start: usize) -> String {
+    fn string_from(&self, start_index: usize) -> String {
         // You should be banned from scripting if you somehow wrote bogus bytes
         String::from_utf8_lossy(
             self.source
-                .get(idx_start..self.index)
+                .get(start_index..self.index)
                 .expect("range should be in bounds of source vector"),
         )
         .into_owned()
@@ -178,11 +174,11 @@ impl Lexer {
     // Here, `char` signals that the callee is lexing a character code literal, which additional
     // value boundaries on \u and \U apply. We also do not expect unicode characters in that
     // literal, so we can leverage on next_byte()'s auto column counting. Thus, the `char` bool also
-    // functions as the `cols` bool to next_byte().
+    // functions as the `columns` bool to next_byte().
     fn advance_escape_sequence(&mut self, char: bool) -> Result<(), LexerErrorKind> {
         match self.next_byte(char) {
             Some(b'U' | b'u' | b'x') => {
-                let idx_start = self.index + 1;
+                let start_index = self.index + 1;
                 let max = match self.current_byte() {
                     Some(b'U') => 8,
                     Some(b'u') => 4,
@@ -191,7 +187,7 @@ impl Lexer {
                 };
                 self.advance_hex_bytes(char, max);
 
-                if idx_start == self.index {
+                if start_index == self.index {
                     if self.current_byte().is_none() {
                         self.column -= 1;
                     }
@@ -200,7 +196,7 @@ impl Lexer {
 
                 // \x in a character code literal has no value boundaries, and it is the only
                 // sequence with a max digit of 2. For the column count, see comment below.
-                if char && max != 2 && self.value_from_hex(idx_start)? > 127 {
+                if char && max != 2 && self.value_from_hex(start_index)? > 127 {
                     self.column -= 1;
                     return Err(LexerErrorKind::CharOob);
                 }
@@ -225,19 +221,19 @@ impl Lexer {
         }
     }
 
-    fn advance_hex_bytes(&mut self, cols: bool, max: u32) {
+    fn advance_hex_bytes(&mut self, columns: bool, max: u32) {
         for _ in 0..=max {
-            match self.next_byte(cols) {
+            match self.next_byte(columns) {
                 Some(b'a'..=b'f' | b'A'..=b'F' | b'0'..=b'9') => {}
                 _ => break,
             }
         }
     }
 
-    fn value_from_hex(&self, idx_start: usize) -> Result<u32, LexerErrorKind> {
+    fn value_from_hex(&self, start_index: usize) -> Result<u32, LexerErrorKind> {
         let src = str::from_utf8(
             self.source
-                .get(idx_start..self.index)
+                .get(start_index..self.index)
                 .expect("range should be in bounds of source vector"),
         )
         .expect("range should only contain hex digit bytes");
@@ -250,7 +246,7 @@ impl Lexer {
         }
     }
 
-    fn advance_bytes_until_lf_or_eof(&mut self) {
+    fn advance_bytes_until_newline_or_eof(&mut self) {
         while let Some(byte) = self.next_byte(false) {
             if byte == b'\n' {
                 break;
@@ -258,16 +254,23 @@ impl Lexer {
         }
     }
 
-    fn create_on_line(&self, kind: TokenKind, col_start: u32) -> Option<Result<Token, LexerError>> {
-        let start = Position::new(self.line, col_start);
-        let end = Position::new(self.line, self.column - 1);
-        Some(Ok(Token::new(kind, start, end)))
+    fn create_on_line(
+        &self,
+        kind: TokenKind,
+        start_column: u32,
+    ) -> Option<Result<Token, LexerError>> {
+        Some(Ok(Token::new(
+            kind,
+            self.line,
+            start_column,
+            self.line,
+            self.column - 1,
+        )))
     }
 
     fn stop_and_error(&mut self, kind: LexerErrorKind) -> Option<Result<Token, LexerError>> {
         self.index = self.source.len();
-        let position = Position::new(self.line, self.column);
-        Some(Err(LexerError::new(kind, position)))
+        Some(Err(LexerError::new(kind, self.line, self.column)))
     }
 }
 
@@ -275,9 +278,9 @@ impl Iterator for Lexer {
     type Item = Result<Token, LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ln_start = self.line;
-        let col_start = self.column;
-        let idx_start = self.index;
+        let start_line = self.line;
+        let start_column = self.column;
+        let start_index = self.index;
         match self.current_byte()? {
             // idents and keywords
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
@@ -285,7 +288,7 @@ impl Iterator for Lexer {
                     self.next_byte(true)
                 {}
 
-                let value = self.string_from(idx_start);
+                let value = self.string_from(start_index);
 
                 // This keyword lookup is from Inko, and it is likely as efficient as it gets
                 // without being too complex.
@@ -354,14 +357,14 @@ impl Iterator for Lexer {
                     _ => TokenKind::Ident(value),
                 };
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             b'/' => match self.next_byte(false) {
                 // "/* ... */" multi-line comment
                 Some(b'*') => {
-                    let did_end_properly: bool;
-                    let mut last_line_start_idx = 0;
+                    let ended_properly: bool;
+                    let mut last_line_start_index = 0;
                     loop {
                         match self.next_byte(false) {
                             Some(b'*') => {
@@ -370,14 +373,14 @@ impl Iterator for Lexer {
                                 if self.peek_byte() == Some(b'/') {
                                     self.next_byte(false);
                                     self.next_byte(false);
-                                    did_end_properly = true;
+                                    ended_properly = true;
                                     break;
                                 }
                             }
 
                             Some(b'\n') => {
                                 self.line += 1;
-                                last_line_start_idx = self.index + 1;
+                                last_line_start_index = self.index + 1;
                             }
 
                             Some(_) => {}
@@ -386,74 +389,74 @@ impl Iterator for Lexer {
                                 // A newline is the very last byte of file whilst a multi-line
                                 // comment block has started
                                 //
-                                // This takes care of the case that last_line_start_idx can be out
+                                // This takes care of the case that last_line_start_index can be out
                                 // of range, so that string_from() doesn't panic.
-                                if last_line_start_idx >= self.source.len() {
+                                if last_line_start_index >= self.source.len() {
                                     self.column = 1;
                                     return self
                                         .stop_and_error(LexerErrorKind::UnclosedMultiLineComment);
                                 } else {
-                                    did_end_properly = false;
+                                    ended_properly = false;
                                     break;
                                 }
                             }
                         }
                     }
 
-                    let value = self.string_from(idx_start);
+                    let value = self.string_from(start_index);
 
-                    if last_line_start_idx == 0 {
+                    if last_line_start_index == 0 {
                         self.column += value.graphemes(true).count() as u32;
                     } else {
                         self.column = self
-                            .string_from(last_line_start_idx)
+                            .string_from(last_line_start_index)
                             .graphemes(true)
                             .count() as u32
                             + 1;
                     }
 
-                    if !did_end_properly {
+                    if !ended_properly {
                         self.column -= 1;
                         return self.stop_and_error(LexerErrorKind::UnclosedMultiLineComment);
                     }
 
-                    let start = Position::new(ln_start, col_start);
-                    let end = Position::new(self.line, self.column - 1);
                     Some(Ok(Token::new(
                         TokenKind::MultiLineComment(value),
-                        start,
-                        end,
+                        start_line,
+                        start_column,
+                        self.line,
+                        self.column - 1,
                     )))
                 }
 
                 // "//" comment
                 Some(b'/') => {
-                    self.advance_bytes_until_lf_or_eof();
-                    let value = self.string_from(idx_start);
+                    self.advance_bytes_until_newline_or_eof();
+                    let value = self.string_from(start_index);
                     self.column += value.graphemes(true).count() as u32;
-                    self.create_on_line(TokenKind::Comment(value), col_start)
+                    self.create_on_line(TokenKind::Comment(value), start_column)
                 }
 
                 // "/="
                 Some(b'=') => {
                     self.next_byte(false);
                     self.column += 2;
-                    self.create_on_line(TokenKind::DivEq, col_start)
+                    self.create_on_line(TokenKind::DivEq, start_column)
                 }
 
                 // "/"
                 _ => {
                     self.column += 1;
-                    self.create_on_line(TokenKind::Div, col_start)
+                    self.create_on_line(TokenKind::Div, start_column)
                 }
             },
 
             // "#" comment
             b'#' => {
-                self.advance_bytes_until_lf_or_eof();
-                let value = self.string_from(idx_start);
+                self.advance_bytes_until_newline_or_eof();
+                let value = self.string_from(start_index);
                 self.column += value.graphemes(true).count() as u32;
-                self.create_on_line(TokenKind::Comment(value), col_start)
+                self.create_on_line(TokenKind::Comment(value), start_column)
             }
 
             b'@' => match self.next_byte(false) {
@@ -466,65 +469,69 @@ impl Iterator for Lexer {
                 // two parts basically have the same code. It might be possible to cut down on
                 // redundant code, but I haven't figured out a way of doing it yet.
                 Some(b'"') => {
-                    let did_end_properly: bool;
-                    let mut last_line_start_idx = 0;
+                    let ended_properly: bool;
+                    let mut last_line_start_index = 0;
                     loop {
                         match self.next_byte(false) {
                             Some(b'"') => {
                                 // We don't need to peek here because we want to skip over the
                                 // second <"> in <"">.
                                 if self.next_byte(false) != Some(b'"') {
-                                    did_end_properly = true;
+                                    ended_properly = true;
                                     break;
                                 }
                             }
 
                             Some(b'\n') => {
                                 self.line += 1;
-                                last_line_start_idx = self.index + 1;
+                                last_line_start_index = self.index + 1;
                             }
 
                             Some(_) => {}
 
                             None => {
-                                if last_line_start_idx >= self.source.len() {
+                                if last_line_start_index >= self.source.len() {
                                     self.column = 1;
                                     return self
                                         .stop_and_error(LexerErrorKind::UnclosedVerbatimString);
                                 } else {
-                                    did_end_properly = false;
+                                    ended_properly = false;
                                     break;
                                 }
                             }
                         }
                     }
 
-                    let value = self.string_from(idx_start);
+                    let value = self.string_from(start_index);
 
-                    if last_line_start_idx == 0 {
+                    if last_line_start_index == 0 {
                         self.column += value.graphemes(true).count() as u32;
                     } else {
                         self.column = self
-                            .string_from(last_line_start_idx)
+                            .string_from(last_line_start_index)
                             .graphemes(true)
                             .count() as u32
                             + 1;
                     }
 
-                    if !did_end_properly {
+                    if !ended_properly {
                         self.column -= 1;
                         return self.stop_and_error(LexerErrorKind::UnclosedVerbatimString);
                     }
 
-                    let start = Position::new(ln_start, col_start);
-                    let end = Position::new(self.line, self.column - 1);
-                    Some(Ok(Token::new(TokenKind::Lit(value), start, end)))
+                    Some(Ok(Token::new(
+                        TokenKind::Lit(value),
+                        start_line,
+                        start_column,
+                        self.line,
+                        self.column - 1,
+                    )))
                 }
 
                 // "@", signaling a lambda expression
                 _ => {
                     self.column += 1;
-                    self.create_on_line(TokenKind::At, col_start)
+                    self.create_on_line(TokenKind::At, start_column)
                 }
             },
 
@@ -543,8 +550,8 @@ impl Iterator for Lexer {
                                 }
                             }
 
-                            let value = self.string_from(idx_start);
-                            return self.create_on_line(TokenKind::Lit(value), col_start);
+                            let value = self.string_from(start_index);
+                            return self.create_on_line(TokenKind::Lit(value), start_column);
                         }
 
                         Some(b'x' | b'X') => {
@@ -552,20 +559,20 @@ impl Iterator for Lexer {
                                 self.next_byte(true)
                             {}
 
-                            let value = self.string_from(idx_start);
-                            return self.create_on_line(TokenKind::Lit(value), col_start);
+                            let value = self.string_from(start_index);
+                            return self.create_on_line(TokenKind::Lit(value), start_column);
                         }
 
                         Some(b'8' | b'9') => {
                             while let Some(b'0'..=b'9') = self.next_byte(true) {}
 
-                            let value = self.string_from(idx_start);
-                            return self.create_on_line(TokenKind::Lit(value), col_start);
+                            let value = self.string_from(start_index);
+                            return self.create_on_line(TokenKind::Lit(value), start_column);
                         }
 
                         Some(b'.' | b'e' | b'E') => {}
 
-                        _ => return self.create_on_line(TokenKind::Lit("0".into()), col_start),
+                        _ => return self.create_on_line(TokenKind::Lit("0".into()), start_column),
                     }
                 }
 
@@ -609,8 +616,8 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                let value = self.string_from(idx_start);
-                self.create_on_line(TokenKind::Lit(value), col_start)
+                let value = self.string_from(start_index);
+                self.create_on_line(TokenKind::Lit(value), start_column)
             }
 
             // "'...'" character code literal
@@ -639,8 +646,8 @@ impl Iterator for Lexer {
                 match self.next_byte(true) {
                     Some(b'\'') => {
                         self.next_byte(true);
-                        let value = self.string_from(idx_start);
-                        self.create_on_line(TokenKind::Lit(value), col_start)
+                        let value = self.string_from(start_index);
+                        self.create_on_line(TokenKind::Lit(value), start_column)
                     }
 
                     Some(b'\n') | None => {
@@ -660,7 +667,7 @@ impl Iterator for Lexer {
                             Ok(_) => {}
                             Err(kind) => {
                                 self.column +=
-                                    self.string_from(idx_start).graphemes(true).count() as u32;
+                                    self.string_from(start_index).graphemes(true).count() as u32;
 
                                 if kind == LexerErrorKind::UnexpectedEof {
                                     self.column -= 1;
@@ -672,7 +679,7 @@ impl Iterator for Lexer {
 
                         Some(b'\n') | None => {
                             self.column +=
-                                self.string_from(idx_start).graphemes(true).count() as u32 - 1;
+                                self.string_from(start_index).graphemes(true).count() as u32 - 1;
                             return self.stop_and_error(LexerErrorKind::UnclosedString);
                         }
 
@@ -682,9 +689,9 @@ impl Iterator for Lexer {
                 }
 
                 self.next_byte(false);
-                let value = self.string_from(idx_start);
+                let value = self.string_from(start_index);
                 self.column += value.graphemes(true).count() as u32;
-                self.create_on_line(TokenKind::Lit(value), col_start)
+                self.create_on_line(TokenKind::Lit(value), start_column)
             }
 
             // "+", "+=" or "++"
@@ -699,7 +706,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "-", "-=" or "--"
@@ -714,7 +721,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "*" or "*="
@@ -728,7 +735,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "%" or "%="
@@ -742,7 +749,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "!" or "!="
@@ -756,7 +763,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "=" or "=="
@@ -770,7 +777,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "&" or "&&"
@@ -784,7 +791,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "|" or "||"
@@ -798,7 +805,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // ":" or "::"
@@ -812,7 +819,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "<", "<<", "<-", "<=", or "<=>"
@@ -831,7 +838,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // ">", ">>", ">>>" or ">="
@@ -849,7 +856,7 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             // "." or "..."
@@ -871,74 +878,74 @@ impl Iterator for Lexer {
                     self.next_byte(true);
                 }
 
-                self.create_on_line(kind, col_start)
+                self.create_on_line(kind, start_column)
             }
 
             b'^' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::BitXor, col_start)
+                self.create_on_line(TokenKind::BitXor, start_column)
             }
 
             b'~' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::BitNot, col_start)
+                self.create_on_line(TokenKind::BitNot, start_column)
             }
 
             b',' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::Comma, col_start)
+                self.create_on_line(TokenKind::Comma, start_column)
             }
 
             b'?' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::Question, col_start)
+                self.create_on_line(TokenKind::Question, start_column)
             }
 
             b'(' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::ParenOpen, col_start)
+                self.create_on_line(TokenKind::ParenOpen, start_column)
             }
 
             b')' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::ParenClose, col_start)
+                self.create_on_line(TokenKind::ParenClose, start_column)
             }
 
             b'[' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::SquareOpen, col_start)
+                self.create_on_line(TokenKind::SquareOpen, start_column)
             }
 
             b']' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::SquareClose, col_start)
+                self.create_on_line(TokenKind::SquareClose, start_column)
             }
 
             b'{' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::BraceOpen, col_start)
+                self.create_on_line(TokenKind::BraceOpen, start_column)
             }
 
             b'}' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::BraceClose, col_start)
+                self.create_on_line(TokenKind::BraceClose, start_column)
             }
 
             b';' => {
                 self.next_byte(true);
-                self.create_on_line(TokenKind::Semicolon, col_start)
+                self.create_on_line(TokenKind::Semicolon, start_column)
             }
 
             // whitespaces
             b' ' | b'\t' => {
                 while let Some(b' ' | b'\t') = self.next_byte(true) {}
-                let value = self.string_from(idx_start);
-                self.create_on_line(TokenKind::Whitespace(value), col_start)
+                let value = self.string_from(start_index);
+                self.create_on_line(TokenKind::Whitespace(value), start_column)
             }
 
             b'\n' => {
                 self.column += 1;
-                let token = self.create_on_line(TokenKind::Newline, col_start);
+                let token = self.create_on_line(TokenKind::Newline, start_column);
                 self.advance_line();
                 token
             }
@@ -995,16 +1002,11 @@ pub enum LexerErrorKind {
     UnexpectedEof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Constructor, Debug, PartialEq)]
 pub struct LexerError {
     pub kind: LexerErrorKind,
-    pub position: Position,
-}
-
-impl LexerError {
-    fn new(kind: LexerErrorKind, position: Position) -> Self {
-        Self { kind, position }
-    }
+    pub line: u32,
+    pub column: u32,
 }
 
 #[cfg(test)]
@@ -1014,14 +1016,11 @@ mod tests {
     use TokenKind::*;
 
     fn token(kind: TokenKind, start: (u32, u32), end: (u32, u32)) -> Token {
-        let start = Position::new(start.0, start.1);
-        let end = Position::new(end.0, end.1);
-        Token::new(kind, start, end)
+        Token::new(kind, start.0, start.1, end.0, end.1)
     }
 
     fn error(kind: LexerErrorKind, line: u32, column: u32) -> LexerError {
-        let position = Position::new(line, column);
-        LexerError::new(kind, position)
+        LexerError::new(kind, line, column)
     }
 
     macro_rules! assert_stream {

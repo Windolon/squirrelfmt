@@ -6,4 +6,5 @@ description = "Code formatter for Squirrel"
 license = "GPL-3.0-only"
 
 [dependencies]
+derive_more = { version = "2.1.1", features = ["constructor"] }
 unicode-segmentation = "1.12.0"
