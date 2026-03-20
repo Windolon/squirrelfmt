@@ -7,7 +7,6 @@ pub enum TokenKind {
     Lit(String),
     Comment(String), // Includes both "//" and "#" comments
     MultiLineComment(String),
-    Whitespace(String),
     Newline,
 
     // Keywords
@@ -939,8 +938,7 @@ impl Iterator for Lexer {
             // whitespaces
             b' ' | b'\t' => {
                 while let Some(b' ' | b'\t') = self.next_byte(true) {}
-                let value = self.string_from(start_index);
-                self.create_on_line(TokenKind::Whitespace(value), start_column)
+                self.next()
             }
 
             b'\n' => {
@@ -1419,17 +1417,11 @@ Möglichkeiten""#,
 
     #[test]
     fn whitespace() {
-        assert_stream!(" ", token(Whitespace(" ".into()), (1, 1), (1, 1)));
-        assert_stream!("\t", token(Whitespace("\t".into()), (1, 1), (1, 1)));
         assert_stream!(
             " a  b   c\td",
-            token(Whitespace(" ".into()), (1, 1), (1, 1)),
             token(Ident("a".into()), (1, 2), (1, 2)),
-            token(Whitespace("  ".into()), (1, 3), (1, 4)),
             token(Ident("b".into()), (1, 5), (1, 5)),
-            token(Whitespace("   ".into()), (1, 6), (1, 8)),
             token(Ident("c".into()), (1, 9), (1, 9)),
-            token(Whitespace("\t".into()), (1, 10), (1, 10)),
             token(Ident("d".into()), (1, 11), (1, 11))
         );
     }
