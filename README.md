@@ -1,14 +1,11 @@
 # squirrelfmt
 
 A work-in-progress tool to format [Squirrel](http://squirrel-lang.org/) code, specifically Squirrel
-3.2.
+3.2. Support for Squirrel 2.2.3 may be possible in the future as a feature flag.
 
-## Acknowledgements
+## Misc info
 
-squirrelfmt is heavily inspired by [Inko](https://inko-lang.org/) and
-[Full Moon](https://github.com/Kampfkarren/full-moon).
+Heavily inspired by [Inko](https://inko-lang.org/) and
+[Full Moon](https://github.com/Kampfkarren/full-moon)
 
-## Licence
-
-Unless otherwise stated, all source code in this repository is licensed under GPL-3.0-only. A copy
-of the GPL can be found in the file "COPYING".
+[GPL-3.0-only licence](COPYING)
